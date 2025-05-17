@@ -1,0 +1,61 @@
+<section class="content overrided-tooltip">
+    <section class="header">
+        <div class="top">
+            <img src="{{ img }}" alt="{{ title }}">
+            <div class="name name-stacked">
+                <span class="title">{{{ title }}}</span>
+                <span class="subtitle">{{{ subtitle }}}</span>
+            </div>
+        </div>
+        <div class="bottom">
+            <div class="price">
+                {{#if system.price}}
+                <span>{{localize "PF2E.PriceLabel"}}:</span>
+                {{#each system.price.value}}
+                    {{#if (gt this 0)}}<span>{{ this }}{{@key}}</span>{{/if}}
+                {{/each}}
+                {{/if}}
+            </div>
+            <div class="charges">
+                {{#if system.uses.max}}
+                <span class="value">{{ system.uses.value }}</span>
+                <span class="separator">&sol;</span>
+                <span class="max">{{ system.uses.max }}</span>
+                {{/if}}
+            </div>
+            <div class="weight">
+                {{#if weight}}
+                <i class="fas fa-weight-hanging"></i>
+                <span>{{ weight.value }}</span>
+                {{/if}}
+            </div>
+        </div>
+    </section>
+    <ul class="weapon-block unlist">
+        {{#each details}}
+        <li>
+            <strong>{{ label }}:</strong>
+            <span class="value">{{{ value }}}</span>
+        </li>
+        {{/each}}
+    </ul>
+    {{#if description}}<section class="description">{{{ description }}}</section>{{/if}}
+    <ul class="tags">
+        {{#each traits}}
+        <li class="tag transparent">
+            <span class="label">{{ label }}</span>
+        </li>
+        {{/each}}
+        {{#each data.properties}}
+        <li class="tag transparent">
+            <span class="label">{{localize this }}</span>
+        </li>
+        {{/each}}
+    </ul>
+    {{#if controlHints}}
+    <div class="control-hint lock-hint">
+        <img src="modules/bg3-hud-pf2e/icons/mouse-middle.svg" alt="{{ localize "BG3.Settings.Controls.MiddleClick" }}">
+        <span>{{ localize "BG3.Settings.Controls.LockHint" }}</span>
+    </div>
+    {{/if}}
+</section>

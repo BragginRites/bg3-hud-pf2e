@@ -1,0 +1,35 @@
+{
+    "BG3.Settings": {
+        "Menu": {
+            "CPR": {
+                "Label": "Select PF2e Actions",
+                "Hint": "Select which PF2e actions to auto-populate in common actions container.",
+                "Name": "Choose PF2e Actions",
+                "UpTo6": "Select which PF2e actions to auto-populate in common actions container. Up to 6."
+            }
+        },
+        "Controls": {
+            "MiddleClick": "Middle Click",
+            "LockHint": "Middle-click to lock"
+        },
+        "synchroMidiQoL": {
+            "BR": {
+                "Name": "Auto consume resources",
+                "Hint": "Automatically consume actions and reactions when using items."
+            },
+            "ADV": {
+                "Name": "Show 2nd and 3rd action buttons",
+                "Hint": "Display 2 additionnal buttons to set your action as 2nd or 3rd and apply malus to the roll."
+            }
+        },
+        "ShowDeathSavingThrow": {
+            "Name": "Display Dying/Wounds Buttons",
+            "Hint": "Control how the Dying/Wounds should be displayed.",
+            "Choices": {
+                "show": "Default",
+                "hide": "Never",
+                "only": "Only display a clickable skull on portrait"
+            }
+        }
+    }
+}
