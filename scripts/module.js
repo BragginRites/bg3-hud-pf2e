@@ -35,6 +35,8 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         "21WIfSu7Xd7uKqV8" : "tumbleThrough"
     };
 
+    BG3CONFIG.DEFAULT_COMMON_ACTIONS = ["feint", "grapple", "hide", "seek", "shove", "sneak"];
+
     BG3UTILS.check2Handed = function(cell) {
         return cell.data?.item?.hands === 2;
     }
@@ -47,8 +49,6 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         } else if(item.uuid) return await fromUuid(item.uuid);
         else return item;
     }
-
-    await game.settings.set("bg3-hud-core","choosenCPRActions", ["feint", "grapple", "hide", "seek", "shove", "sneak"]);
 
     game.settings.menus.get(BG3CONFIG.MODULE_NAME + ".chooseCPRActions").visible = () => true;
 
@@ -71,7 +71,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         const abilityScore = actor.abilities?.[key] || { value: 10, proficient: false };
         mod = abilityScore?.mod ?? 0;
         modString = mod >= 0 ? `+${mod}` : mod.toString();
-        return {value: modString, style: abilityScore?.proficient ?  'color: #3498db' : ''  };
+        return {value: modString, style: getProfColor(abilityScore?.proficient, abilityScore?.rank)};
     };
 
     const getSkillMod = function(actor, key) {
@@ -349,13 +349,13 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
     }
 
     const checkExtraConditions = function(item) {
-      return item.actionType !== 'passive';
+      return !game.settings.get(BG3CONFIG.MODULE_NAME, 'noActivityAutoPopulate') ||  item.actionType !== 'passive';
     }
 
-    const checkPreparedSpell = function(item) {
+    /* const checkPreparedSpell = function(item) {
         const spellLevel = item.isCantrip ? 0 : item.system.level.value;
-      return item.spellcasting.system.slots[`slot${spellLevel}`].prepared.find(i => i.id === item.id);
-    }
+        return item.spellcasting.system.slots[`slot${spellLevel}`].prepared.find(i => i.id === item.id);
+    } */
 
     const getItemsList = function(actor, itemTypes) {
         let itemsList = [];
@@ -485,6 +485,9 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
             } else if(this.data?.item?.type === 'common' && game.pf2e.actions[this.data.item.slug]) {
                 game.pf2e.actions[this.data.item.slug]({actors: this.actor})
                 used = true;
+            } else if(item.sheet?.render) {
+                item.sheet.render(true);
+                used = true;
             } else {
                 const settings = {actors: this.actor, event: e}
                 if (game.pf2e.actions[item.system.slug]) {
@@ -538,9 +541,10 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
             data = {...data, ...{
                     uuid: itemData.slug ?? itemData.uuid,
                     name: itemData.name ?? itemData.label,
-                    icon: itemData.img ?? itemData.item?.linkedWeapon?.img ?? itemData.item.img,
+                    icon: itemData.img ?? itemData.item?.linkedWeapon?.img ?? itemData.item?.img ?? 'icons/svg/book.svg',
                     actionType: this.getActionType(itemData),
-                    itemType: itemData.type
+                    itemType: itemData.type,
+                    quantity: itemData.system?.quantity && itemData.system?.quantity > 1 ? itemData.system?.quantity : false
                 },
                 ...await this.getItemUses()
             };
@@ -582,7 +586,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
             let toggleoptions = ["versatile", "modular"];
             
             for (let togglekey of toggleoptions) {
-                if (item?.system.traits.toggles) {
+                if (item?.system?.traits.toggles) {
                     let toggle = item.system.traits.toggles[togglekey];
                     
                     if (toggle.options.length) {
@@ -598,7 +602,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                         
                         btns[togglekey] = {
                             label : game.i18n.localize("PF2E.Trait" + togglekey.charAt(0).toUpperCase() + togglekey.slice(1)),
-                            icon : "fas " + getDamageIcon(current),
+                            icon : "fas " + BG3UTILS.getDamageIcon(current),
                             click : () => {
                                 item.update({system : {traits : {toggles : {[togglekey] : {selected : next}}}}})
                             }
@@ -670,7 +674,8 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                     const spellArray = item.spellcasting.system.slots[`slot${level}`]?.prepared.filter(s => s.id === item.id);
                     return spellArray.length ? {uses: {value: spellArray.filter(s => !s.expended).length, max: spellArray.length}} : null;
                 }
-            } else if(item.quantity) return {uses: {value: item.quantity}}
+            }
+            //  else if(item.quantity) return {uses: {value: item.quantity}}
         }
         return null;
     }
@@ -715,27 +720,6 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         }
         
         return [item ?? data, action];
-    }
-
-    function getDamageIcon(type) {
-        return {
-            "acid": "fa-flask",
-            "bludgeoning": "fa-hammer",
-            "cold": "fa-snowflake",
-            "electricity": "fa-bolt",
-            "fire": "fa-fire",
-            "vitality": "fa-sun",
-            "void": "fa-skull",
-            "piercing": "fa-bow-arrow",
-            "slashing": "fa-axe",
-            "sonic": "fa-waveform-lines",
-            "spirit": "fa-ghost",
-            "mental": "fa-brain",
-            "poison": "fa-spider",
-            "blood": "fa-droplet",
-            "precision": "fa-crosshairs",
-            "healing": "fa-heart"
-        }[type];
     }
 
     function getItemAction(item) {
@@ -853,6 +837,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                 type: 'div',
                 key: 'advBtn',
                 label: '2nd',
+                title: 'Set your next action as the 2nd.',
                 events: {
                     'mouseup': this.setState.bind(this),
                 }
@@ -861,6 +846,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                 type: 'div',
                 key: 'disBtn',
                 label: '3rd',
+                title: 'Set your next action as the 3rd.',
                 events: {
                     'mouseup': this.setState.bind(this),
                 }
@@ -949,48 +935,6 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                 return [];
         }
     }
-    function damageIcon(damageType) {
-        let iconclass = [];
-        
-        if (!damageType) return iconclass;
-        
-        switch (damageType.toLowerCase()) {
-            case "acid":
-                return ["fa-solid", "fa-flask"];
-            case "bludgeoning":
-                return ["fa-solid", "fa-hammer"];
-            case "cold":
-                return ["fa-solid", "fa-snowflake"];
-            case "electricity":
-                return ["fa-solid", "fa-bolt"];
-            case "fire":
-                return ["fa-solid", "fa-fire"];
-            case "vitality":
-                return ["fa-solid", "fa-sun"];
-            case "void":
-                return ["fa-solid", "fa-skull"];
-            case "piercing":
-                return ["fa-solid", "fa-bow-arrow"];
-            case "slashing":
-                return ["fa-solid", "fa-axe"];
-            case "sonic":
-                return ["fa-solid", "fa-waveform-lines"];
-            case "spirit":
-                return ["fa-solid", "fa-ghost"];
-            case "mental":
-                return ["fa-solid", "fa-brain"];
-            case "poison":
-                return ["fa-solid", "fa-spider"];
-            case "blood":
-                return ["fa-solid", "fa-droplet"];
-            case "precision":
-                return ["fa-solid", "fa-crosshairs"];
-            case "healing":
-                return ["fa-solid", "fa-heart"]
-            default:
-                return [];
-        }
-    }
     function damagecategoryIcon(category) {
         switch (category) {
             case "persistent": return `<i class="fa-solid fa-hourglass"></i>`;
@@ -1069,7 +1013,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
             const system = item.system ?? item;
 
             title = game.i18n.localize(item.name);
-            img = item.img;
+            img = item.img ?? item.item?.linkedWeapon?.img ?? item.item?.img ?? 'icons/svg/book.svg';
             if(system) {
                 description = await TextEditor.enrichHTML(game.i18n.localize(system.description?.value ?? system.description));
                 subtitle = system.traits?.rarity ? game.i18n.localize("PF2E.Trait" + BG3UTILS.firstUpper(system.traits?.rarity)) : null;
@@ -1199,15 +1143,9 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                     let damages = item.type == "spell" ? system.damage : system.damageRolls
                     let entries = [];
                     for (let key of Object.keys(damages)) {
-                        let type = damages[key].type || damages[key].kind || damages[key].damageType;
-                        
-                        let formula = damages[key].formula || damages[key].damage
-                        
-                        if (!type && damages[key].kinds) {
-                            type = Object.values(damages[key].kinds).find(value => damageIcon(value).length);
-                        }
-                        
-                        entries.push(`${formula} ${damagecategoryIcon(damages[key].category)} <i class="${damageIcon(type).join(" ")}"></i>`)
+                        let type = damages[key].type || damages[key].kind || damages[key].damageType,
+                            formula = await BG3UTILS.damageToRange(damages[key].formula || damages[key].damage);
+                        entries.push(`${formula} ${damagecategoryIcon(damages[key].category)} <i class="fas ${ BG3UTILS.getDamageIcon(type ?? Object.values(damages[key].kinds))}"></i>`)
                     }
                     damageentry = entries.join("<br>");
                 }
@@ -1215,9 +1153,8 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                     if (system.damage) {
                         let type = system.damage.damageType || system.damage.kind;
                         
-                        let formula = system.damage.dice && system.damage.die ? `${system.damage.dice}${system.damage.die}` : system.damage.formula;
-                        
-                        damageentry = `${formula} ${damagecategoryIcon(system.damage.category)} <i class="${damageIcon(type).join(" ")}"></i>`
+                        let formula = await BG3UTILS.damageToRange(system.damage.dice && system.damage.die ? `${system.damage.dice}${system.damage.die}` : system.damage.formula);
+                        damageentry = `${formula} ${damagecategoryIcon(system.damage.category)} <i class="fas ${ BG3UTILS.getDamageIcon(type)}"></i>`
                     }
                 }
                 if (damageentry) {
@@ -1260,7 +1197,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
     BG3Hotbar.overrideClass('FilterContainer', 'getFilterData', getFilterData);
     BG3Hotbar.overrideClass('FilterContainer', '_autoCheckUsed', _autoCheckUsed);
     BG3Hotbar.overrideClass('AutoPopulateFeature', 'checkExtraConditions', checkExtraConditions);
-    BG3Hotbar.overrideClass('AutoPopulateFeature', 'checkPreparedSpell', checkPreparedSpell);
+    // BG3Hotbar.overrideClass('AutoPopulateFeature', 'checkPreparedSpell', checkPreparedSpell);
     BG3Hotbar.overrideClass('AutoPopulateFeature', 'getItemsList', getItemsList);
     BG3Hotbar.overrideClass('AutoPopulateFeature', 'constructItemData', constructItemData);
     BG3Hotbar.overrideClass('AutoPopulateFeature', '_getCombatActionsList', _getCombatActionsList);
