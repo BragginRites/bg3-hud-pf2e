@@ -50,6 +50,10 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         else return item;
     }
 
+    BG3UTILS.itemIsPassive = function(item) {
+        return item.actionType === 'passive';
+    }
+
     game.settings.menus.get(BG3CONFIG.MODULE_NAME + ".chooseCPRActions").visible = () => true;
 
     const getProfColor = function(proficient, rank) {
@@ -348,10 +352,6 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         if((!this.used.includes(reactionFilter) && reactionCount === 0) || (this.used.includes(reactionFilter) && reactionCount > 0)) this.used = reactionFilter;
     }
 
-    const checkExtraConditions = function(item) {
-      return !game.settings.get(BG3CONFIG.MODULE_NAME, 'noActivityAutoPopulate') ||  item.actionType !== 'passive';
-    }
-
     /* const checkPreparedSpell = function(item) {
         const spellLevel = item.isCantrip ? 0 : item.system.level.value;
         return item.spellcasting.system.slots[`slot${spellLevel}`].prepared.find(i => i.id === item.id);
@@ -475,8 +475,6 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                     legacy: false,
                     event: e
                 };
-                if (e.ctrlKey) options.disadvantage = true;
-                if (e.altKey) options.advantage = true;
                 used = await item.use(options, { event: e });
             } else if(item.consume) {
                 item.consume(e);
@@ -659,8 +657,6 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                     };
                 }
             }
-
-            if(Object.keys(btns).length) btns = {...btns, ...{div1: {label: 'divider', visibility: !this.data.item}}};
         }
         return btns;
     }
@@ -826,6 +822,13 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         }
         return [newItem, hasUpdate];
     }
+
+    // const old_handleItemUpdate = ui.BG3HOTBAR.itemUpdateManager._handleItemUpdate;
+    // const _handleItemUpdate = async function(item, changes, options, userId) {
+    //     if(item.type === 'spellcastingEntry2') {
+    //         old_handleItemUpdate.bind(ui.BG3HOTBAR.itemUpdateManager._handleItemUpdate)(item, changes, options, userId);
+    //     } else old_handleItemUpdate.bind(ui.BG3HOTBAR.itemUpdateManager._handleItemUpdate)(item, changes, options, userId);
+    // }
 
     const isVisibleAC = function() {
         return game.settings.get(MODULE_NAME, 'addAdvBtnsMidiQoL');
@@ -1196,7 +1199,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
     BG3Hotbar.overrideClass('DeathSavesContainer', 'skullClick', skullClickDSC);
     BG3Hotbar.overrideClass('FilterContainer', 'getFilterData', getFilterData);
     BG3Hotbar.overrideClass('FilterContainer', '_autoCheckUsed', _autoCheckUsed);
-    BG3Hotbar.overrideClass('AutoPopulateFeature', 'checkExtraConditions', checkExtraConditions);
+    // BG3Hotbar.overrideClass('AutoPopulateFeature', 'checkExtraConditions', checkExtraConditions);
     // BG3Hotbar.overrideClass('AutoPopulateFeature', 'checkPreparedSpell', checkPreparedSpell);
     BG3Hotbar.overrideClass('AutoPopulateFeature', 'getItemsList', getItemsList);
     BG3Hotbar.overrideClass('AutoPopulateFeature', 'constructItemData', constructItemData);
@@ -1211,6 +1214,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
     BG3Hotbar.overrideClass('GridCell', 'getItemUses', getItemUses);
     BG3Hotbar.overrideClass('CPRActionsDialog', 'getData', getDataCPR);
     BG3Hotbar.overrideClass('ItemUpdateManager', 'retrieveNewItem', retrieveNewItem);
+    // BG3Hotbar.overrideClass('ItemUpdateManager', '_handleItemUpdate', _handleItemUpdate);
     BG3Hotbar.overrideClass('AdvContainer', 'isVisible', isVisibleAC);
     BG3Hotbar.overrideClass('AdvContainer', 'getBtnData', getBtnDataAC);
     BG3Hotbar.overrideClass('AdvContainer', 'setState', setStateAC);
