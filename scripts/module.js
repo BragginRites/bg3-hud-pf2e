@@ -183,6 +183,29 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         return [item ?? data, action];
     }
 
+    BG3UTILS.getSpellDC = async function(actor) {
+        const spellDC = Math.max(...(await Promise.all(actor.items.filter(item => item.type == 'spellcastingEntry').map(group => group.getSheetData()))).map(info => info.statistic.dc.value));
+        return spellDC > 0 && (!actor.system.attributes.classDC?.dc || (spellDC >= actor.system.attributes.classDC?.dc)) ? spellDC : actor.system.attributes.classDC?.dc;
+    }
+
+    class PF2EPortraitContainer extends CONFIG.BG3HUD.COMPONENTS.PORTRAIT.CONTAINER {
+        constructor(data) {
+            super(data);
+        }
+        
+        get extraInfos() {
+            return (async () => {
+                const extraDatas = await super.extraInfos,
+                    savedData = game.settings.get(BG3CONFIG.MODULE_NAME, 'dataExtraInfo'),
+                    dcIndex = savedData.indexOf(savedData.find(d => d.attr === 'spellDC'));
+                console.log(savedData, dcIndex)
+                if(dcIndex > -1) extraDatas[dcIndex].value = await BG3UTILS.getSpellDC(this.actor);
+                console.log(extraDatas)
+                return extraDatas;
+            })();
+        }
+    }
+
     class PF2EAbilityContainer extends CONFIG.BG3HUD.COMPONENTS.PORTRAIT.ABILITY {
         constructor(data) {
             super(data);
@@ -882,6 +905,18 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         }
     }
 
+    class PF2EExtraInfosDialog extends CONFIG.BG3HUD.DIALOGS.EXTRA {
+        constructor () {
+            super();
+        }
+        
+        getData() {
+            const data = super.getData();
+            data.listAttrChoices.push({value: 'spellDC'});
+            return data;
+        }
+    }
+
     class PF2EAdvContainer extends CONFIG.BG3HUD.COMPONENTS.ADVANTAGE {
         constructor(data) {
             super(data);
@@ -1323,6 +1358,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         }
     }
 
+    BG3Hotbar.overrideClass('COMPONENTS.PORTRAIT.CONTAINER', PF2EPortraitContainer);
     BG3Hotbar.overrideClass('COMPONENTS.PORTRAIT.ABILITY', PF2EAbilityContainer);
     BG3Hotbar.overrideClass('COMPONENTS.PORTRAIT.DEATH', PF2EDeathSavesContainer);
     BG3Hotbar.overrideClass('COMPONENTS.RESTTURN', PF2ERestTurnContainer);
@@ -1331,21 +1367,23 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
     BG3Hotbar.overrideClass('COMPONENTS.HOTBAR.ACTIVE', PF2EActiveContainer);
     BG3Hotbar.overrideClass('COMPONENTS.WEAPON', PF2EWeaponContainer);
     BG3Hotbar.overrideClass('DIALOGS.CPR', PF2ECPRActionsDialog);
+    BG3Hotbar.overrideClass('DIALOGS.EXTRA', PF2EExtraInfosDialog);
     BG3Hotbar.overrideClass('MANAGERS.TOOLTIP', PF2EBG3TooltipManager);
     BG3Hotbar.overrideClass('CORE.CELL', PF2EGridCell);
     BG3Hotbar.overrideClass('FEATURES.POPULATE', PF2EAutoPopulateFeature);
     BG3Hotbar.overrideClass('MANAGERS.ITEM', PF2EItemUpdateManager);
     BG3Hotbar.overrideClass('BUTTONS.ACTIVE', PF2EActiveButton);
 
+    game.settings.menus.get(BG3CONFIG.MODULE_NAME + ".menuExtraInfo").type = PF2EExtraInfosDialog;
     game.settings.menus.get(BG3CONFIG.MODULE_NAME + ".chooseCPRActions").type = PF2ECPRActionsDialog;
     game.settings.menus.get(BG3CONFIG.MODULE_NAME + ".chooseCPRActions").visible = () => true;
     game.settings.settings.get(BG3CONFIG.MODULE_NAME + ".choosenCPRActions").default = ["feint", "grapple", "hide", "seek", "shove", "sneak"];
     game.settings.settings.get(BG3CONFIG.MODULE_NAME + ".dataExtraInfo").default = [
         {attr: 'attributes.ac.value', icon: 'fas fa-shield', color: '#5abef5', pos: 'Top Left'},
-        {attr: 'resources.heroPoints.value', icon: 'fas fa-star', color: '#ffdd00', pos: 'Top Right'},
+        {attr: 'spellDC', icon: 'fas fa-book-open', color: '#af68d5', pos: 'Top Right'},
         {attr: '', icon: '', color: '', pos: 'Left'},
         {attr: '', icon: '', color: '', pos: 'Right'},
-        {attr: '', icon: '', color: '', pos: 'Bottom Left'},
+        {attr: 'resources.heroPoints.value', icon: 'fas fa-star', color: '#ffdd00', pos: 'Bottom Left'},
         {attr: '', icon: '', color: '', pos: 'Bottom Right'}
     ];
 });
