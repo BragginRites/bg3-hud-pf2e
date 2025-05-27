@@ -1277,6 +1277,14 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
     game.settings.menus.get(BG3CONFIG.MODULE_NAME + ".chooseCPRActions").type = PF2ECPRActionsDialog;
     game.settings.menus.get(BG3CONFIG.MODULE_NAME + ".chooseCPRActions").visible = () => true;
     game.settings.settings.get(BG3CONFIG.MODULE_NAME + ".choosenCPRActions").default = ["feint", "grapple", "hide", "seek", "shove", "sneak"];
+    game.settings.settings.get(BG3CONFIG.MODULE_NAME + ".dataExtraInfo").default = [
+        {attr: 'attributes.ac.value', icon: 'fas fa-shield', color: '#5abef5', pos: 'Top Left'},
+        {attr: 'resources.heroPoints.value', icon: 'fas fa-star', color: '#ffdd00', pos: 'Top Right'},
+        {attr: '', icon: '', color: '', pos: 'Left'},
+        {attr: '', icon: '', color: '', pos: 'Right'},
+        {attr: '', icon: '', color: '', pos: 'Bottom Left'},
+        {attr: '', icon: '', color: '', pos: 'Bottom Right'}
+    ];
 });
 
 
