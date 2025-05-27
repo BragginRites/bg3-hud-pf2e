@@ -52,6 +52,36 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         return item.actionType === 'passive';
     }
 
+    BG3UTILS.applyEffect = async function(actor, target, item, effect) {
+        const effectClass = CONFIG.PF2E.Item.documentClasses.effect;
+        if (effect instanceof effectClass) {
+            const traits = item.system.traits.value?.filter(
+                    (t2) => t2 in effectClass.validTraits
+                ) ?? [],
+                effectSource = foundry.utils.mergeObject(effect.toObject(), {
+                _id: null,
+                system: {
+                    context: {
+                    origin: {
+                        actor: actor.uuid,
+                        token: actor.getActiveTokens(!0, !0).at(0)?.uuid ?? null,
+                        item: item.uuid,
+                        spellcasting: null,
+                        rollOptions: item.getOriginData().rollOptions,
+                    },
+                    target: {
+                        actor: target.uuid,
+                        token: target.getActiveTokens(!0, !0).at(0)?.uuid ?? null,
+                    },
+                    roll: null,
+                    },
+                    traits: { value: traits },
+                },
+            });
+            await target.createEmbeddedDocuments("Item", [effectSource]);
+        }
+    }
+
     BG3UTILS.getItemAction = function(item) {
         let action = {actionType : {}, actions : {}};
         if(!item) return action;
@@ -638,7 +668,10 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                 } else if(this.data?.item?.type === 'common' && game.pf2e.actions[this.data.item.slug]) {
                     game.pf2e.actions[this.data.item.slug]({actors: this.actor})
                     used = true;
-                }  else {
+                } else if((item.type === "action" || item.type === "feat") && item.system.selfEffect) {
+                    const effect = await fromUuid(item.system.selfEffect.uuid);
+                    await BG3UTILS.applyEffect(this.actor, this.actor, item, effect);
+                } else {
                     const settings = {actors: this.actor, event: e}
                     if (game.pf2e.actions[item.system?.slug]) {
                         game.pf2e.actions[item.system?.slug](settings);
@@ -729,7 +762,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                     if (item?.system?.traits.toggles) {
                         let toggle = item.system.traits.toggles[togglekey];
                         
-                        if (toggle.options.length) {
+                        if (toggle?.options?.length) {
                             let options = [null, ...toggle.options];
                             
                             let current = toggle.selected;
