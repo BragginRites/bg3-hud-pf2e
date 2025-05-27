@@ -35,8 +35,8 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         "21WIfSu7Xd7uKqV8" : "tumbleThrough"
     };
 
-    BG3UTILS.check2Handed = function(cell) {
-        return cell.data?.item?.hands === 2;
+    BG3UTILS.check2Handed = function(item) {
+        return item?.hands == 2 || item?.item?.hands == 2;
     }
     
     BG3UTILS.getItem = async function(item, actor) {
