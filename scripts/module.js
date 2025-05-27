@@ -638,19 +638,19 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                 } else if(this.data?.item?.type === 'common' && game.pf2e.actions[this.data.item.slug]) {
                     game.pf2e.actions[this.data.item.slug]({actors: this.actor})
                     used = true;
-                } else if(item.sheet?.render) {
-                    item.sheet.render(true);
-                    used = true;
-                } else {
+                }  else {
                     const settings = {actors: this.actor, event: e}
-                    if (game.pf2e.actions[item.system.slug]) {
-                        game.pf2e.actions[item.system.slug](settings);
+                    if (game.pf2e.actions[item.system?.slug]) {
+                        game.pf2e.actions[item.system?.slug](settings);
                         used = true;
-                    } else if (game.pf2e.actions.get(item.system.slug)) {
-                        game.pf2e.actions.get(item.system.slug).toActionVariant().use(settings);
+                    } else if (game.pf2e.actions.get(item.system?.slug)) {
+                        game.pf2e.actions.get(item.system?.slug).toActionVariant().use(settings);
                         used = true;
-                    } else {
+                    } else if(item.toChat) {
                         item.toChat(e);
+                        used = true;
+                    } else if(item.sheet?.render) {
+                        item.sheet.render(true);
                         used = true;
                     }
                 }
