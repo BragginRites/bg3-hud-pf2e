@@ -158,7 +158,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
             super(data);
         }
 
-        getProfColor(proficient) {
+        getProfColor(proficient, rank) {
             return proficient ? rank > 1 ? 'color: #c866ff' : 'color: #3498db' : ''
         }
 
