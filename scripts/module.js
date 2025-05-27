@@ -247,7 +247,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         getMenuBtns() {
             let btns = {};
             for(const save in this.actor.saves) {
-                const saveMod = this.getSaveMod(this.actor, save);
+                const saveMod = this.getSaveMod(save);
                 btns[save] = {
                     label: game.i18n.localize(CONFIG.PF2E.saves[save]),
                     class: 'ability-container',
@@ -258,7 +258,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
             };
             btns['divider1'] = {label: 'divider'};
             for(const abl in this.actor.abilities) {
-                const abilityMod = this.getAbilityMod(this.actor, abl);
+                const abilityMod = this.getAbilityMod(abl);
                 btns[abl] = {
                     label: game.i18n.localize(CONFIG.PF2E.abilities[abl]),
                     class: 'ability-container',
@@ -266,14 +266,14 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                     subMenu: [
                         {
                             position: 'topright', name: 'skillMenu', event: 'click',
-                            buttons: this.getSkillMod(this.actor, abl)
+                            buttons: this.getSkillMod(abl)
                         }
                     ]
                 }
             };
             btns['divider2'] = {label: 'divider'};
             const initSelect = $('<select>'),
-                skillsList = this.getSkillsList(this.actor);
+                skillsList = this.getSkillsList();
             for(const skill in skillsList) {
                 initSelect.append($('<option>').attr('selected', skill === this.actor.system.initiative.statistic).val(skill).text(skillsList[skill].label));
             }
@@ -509,6 +509,21 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                 actionCount = maxActions[actionType];
             }
             return actionCount;
+        }
+    }
+
+    class PF2EActiveContainer extends CONFIG.BG3HUD.COMPONENTS.HOTBAR.ACTIVE {
+        constructor(data) {
+            super(data);
+        }
+
+        get activesList() {
+            if(!this.token && !this.actor) return null;
+            const conditions = this.actor.conditions?.active ?? [],
+                effects = this.actor.itemTypes.effect ?? [];
+
+            // Get active effects from the actor's sheet.
+            return [...conditions, ...effects];
         }
     }
 
@@ -937,6 +952,20 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
             return [newItem, hasUpdate];
         }
     }
+
+    class PF2EActiveButton extends CONFIG.BG3HUD.BUTTONS.ACTIVE {
+        constructor(data, parent) {
+            super(data, parent);
+        }
+
+        async update() {
+            return null;
+        }
+
+        get itemLabel() {
+            return this.data.item.name;
+        }
+    }
     
     class PF2EBG3TooltipManager extends CONFIG.BG3HUD.MANAGERS.TOOLTIP {
         constructor() {
@@ -1122,7 +1151,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                 img = item.img ?? item.item?.linkedWeapon?.img ?? item.item?.img ?? 'icons/svg/book.svg';
                 if(system) {
                     description = await TextEditor.enrichHTML(game.i18n.localize(system.description?.value ?? system.description));
-                    subtitle = system.traits?.rarity ? game.i18n.localize("PF2E.Trait" + BG3UTILS.firstUpper(system.traits?.rarity)) : null;
+                    subtitle = system.traits?.rarity ? game.i18n.localize("PF2E.Trait" + BG3UTILS.firstUpper(system.traits?.rarity)) : '';
                     if (system?.level?.hasOwnProperty("value")) {
                         subtitle = subtitle + ` ${BG3UTILS.replacewords(game.i18n.localize("PF2E.LevelN"), {level : system.level.value})}`;
                     }
@@ -1269,8 +1298,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                             value: damageentry
                         });
                     }
-                    
-                    if (system.duration?.value || system.duration?.sustained) {
+                    if (system.duration?.value > -1 || system.duration?.sustained) {
                         let symbol = "";
                         if (system.duration?.sustained) {
                             symbol = `<i class="fa-solid fa-s"></i> `;
@@ -1300,12 +1328,14 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
     BG3Hotbar.overrideClass('COMPONENTS.RESTTURN', PF2ERestTurnContainer);
     BG3Hotbar.overrideClass('COMPONENTS.ADVANTAGE', PF2EAdvContainer);
     BG3Hotbar.overrideClass('COMPONENTS.HOTBAR.FILTER', PF2EFilterContainer);
+    BG3Hotbar.overrideClass('COMPONENTS.HOTBAR.ACTIVE', PF2EActiveContainer);
     BG3Hotbar.overrideClass('COMPONENTS.WEAPON', PF2EWeaponContainer);
     BG3Hotbar.overrideClass('DIALOGS.CPR', PF2ECPRActionsDialog);
     BG3Hotbar.overrideClass('MANAGERS.TOOLTIP', PF2EBG3TooltipManager);
     BG3Hotbar.overrideClass('CORE.CELL', PF2EGridCell);
     BG3Hotbar.overrideClass('FEATURES.POPULATE', PF2EAutoPopulateFeature);
     BG3Hotbar.overrideClass('MANAGERS.ITEM', PF2EItemUpdateManager);
+    BG3Hotbar.overrideClass('BUTTONS.ACTIVE', PF2EActiveButton);
 
     game.settings.menus.get(BG3CONFIG.MODULE_NAME + ".chooseCPRActions").type = PF2ECPRActionsDialog;
     game.settings.menus.get(BG3CONFIG.MODULE_NAME + ".chooseCPRActions").visible = () => true;
