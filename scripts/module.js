@@ -483,7 +483,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
     }
 
     class PF2EAutoPopulateFeature extends CONFIG.BG3HUD.FEATURES.POPULATE {
-        getItemsList(actor, itemTypes, manager) {
+        static getItemsList(actor, itemTypes, manager) {
             let itemsList = [];
             if(itemTypes.includes('spell')) {
                 let spellCastings = actor.items.filter(entry => entry.type == "spellcastingEntry");
@@ -512,7 +512,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
             return [...itemsList, ...actor.items.filter(i => itemTypes.includes(i.type)).map(i => {return {uuid: i.uuid, type: i.type, actionType: i.system.actionType?.value}})];
         }
 
-        constructItemData(item) {
+        static constructItemData(item) {
             return item;
         }
 
