@@ -153,8 +153,6 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         return [item ?? data, action];
     }
 
-    game.settings.menus.get(BG3CONFIG.MODULE_NAME + ".chooseCPRActions").visible = () => true;
-
     class PF2EAbilityContainer extends CONFIG.BG3HUD.COMPONENTS.PORTRAIT.ABILITY {
         constructor(data) {
             super(data);
