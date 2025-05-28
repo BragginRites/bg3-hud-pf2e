@@ -1009,7 +1009,6 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
 
         _init() {
             super._init();
-
             const oldActivate = TooltipManager.prototype.activate;
             TooltipManager.prototype.activate = function(element, {text, direction, cssClass, locked=false, content}={}) {
                 oldActivate.bind(this)(element, {text, direction, cssClass, locked, content});
@@ -1333,7 +1332,8 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                             value: damageentry
                         });
                     }
-                    if (system.duration?.value > -1 || system.duration?.sustained) {
+                    
+                    if ((system.duration?.value && system.duration?.value > -1) || system.duration?.sustained) {
                         let symbol = "";
                         if (system.duration?.sustained) {
                             symbol = `<i class="fa-solid fa-s"></i> `;
