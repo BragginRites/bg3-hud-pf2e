@@ -41,7 +41,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
     
     BG3UTILS.getItem = async function(item, actor) {
         if(!item) return;
-        if(item.slug) {
+        if(item.slug && item.slug !== 'elemental-blast') {
             if(item.type === 'common') return game.pf2e.actions.get(item.slug);
             else return actor.system.actions?.find(a => a.slug === item.slug);
         } else if(item.uuid) return await fromUuid(item.uuid);
@@ -62,18 +62,18 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                 _id: null,
                 system: {
                     context: {
-                    origin: {
-                        actor: actor.uuid,
-                        token: actor.getActiveTokens(!0, !0).at(0)?.uuid ?? null,
-                        item: item.uuid,
-                        spellcasting: null,
-                        rollOptions: item.getOriginData().rollOptions,
-                    },
-                    target: {
-                        actor: target.uuid,
-                        token: target.getActiveTokens(!0, !0).at(0)?.uuid ?? null,
-                    },
-                    roll: null,
+                        origin: {
+                            actor: actor.uuid,
+                            token: actor.getActiveTokens(!0, !0).at(0)?.uuid ?? null,
+                            item: item.uuid,
+                            spellcasting: null,
+                            rollOptions: item.getOriginData().rollOptions,
+                        },
+                        target: {
+                            actor: target.uuid,
+                            token: target.getActiveTokens(!0, !0).at(0)?.uuid ?? null,
+                        },
+                        roll: null,
                     },
                     traits: { value: traits },
                 },
@@ -188,6 +188,23 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         return spellDC > 0 && (!actor.system.attributes.classDC?.dc || (spellDC >= actor.system.attributes.classDC?.dc)) ? spellDC : actor.system.attributes.classDC?.dc;
     }
 
+    BG3UTILS.getImg = async function(item, args = {}) {
+        if(item.system?.selfEffect?.uuid && !item.system?.selfEffect?.img) {
+            const effect = await fromUuid(item.system.selfEffect.uuid);
+            if(effect) return effect.img;
+        }
+        if(item.slug === 'elemental-blast' && args.hasOwnProperty('element')) {
+            const blast = new game.pf2e.ElementalBlast(item.actor),
+                thisBlast = blast.configs.find(c => c.element === args.element);
+            return thisBlast.img;
+        }
+        return item.system?.selfEffect?.img ?? item.img ?? item.item?.linkedWeapon?.img ?? item.item?.img ?? 'icons/svg/book.svg';
+    }
+
+    BG3UTILS.getBlastDamages = function(blast, element, active = true) {
+        return blast.configs.find(c => c.element === element)?.damageTypes.find(d => d.selected === active) ?? null;
+    }
+
     class PF2EPortraitContainer extends CONFIG.BG3HUD.COMPONENTS.PORTRAIT.CONTAINER {
         constructor(data) {
             super(data);
@@ -198,9 +215,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                 const extraDatas = await super.extraInfos,
                     savedData = game.settings.get(BG3CONFIG.MODULE_NAME, 'dataExtraInfo'),
                     dcIndex = savedData.indexOf(savedData.find(d => d.attr === 'spellDC'));
-                console.log(savedData, dcIndex)
                 if(dcIndex > -1) extraDatas[dcIndex].value = await BG3UTILS.getSpellDC(this.actor);
-                console.log(extraDatas)
                 return extraDatas;
             })();
         }
@@ -676,8 +691,21 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
 
         async useItem(item, e, override) {
             let used = false,
-                options = {};
-            if(item?.type === 'spell') {
+                options = {},
+                mapFlag = this.actor.getFlag(BG3CONFIG.MODULE_NAME, "advState"),
+                map = mapFlag === 'advBtn' ? 1 : (mapFlag === 'disBtn' ? 2 : 0);
+            if(this.data?.item?.slug === 'elemental-blast') {
+                const blast = new game.pf2e.ElementalBlast(this.actor),
+                    element = this.data.item.element,
+                    damageType = BG3UTILS.getBlastDamages(blast, this.data.item.element)?.value ?? 'untyped';
+                used = await blast.attack({
+                    mapIncreases: map,
+                    element,
+                    damageType,
+                    melee: !this.data.item.ranged,
+                    event: e
+                });
+            } else if(item?.type === 'spell') {
                 const fpCost = item.system.cast.focusPoints;
                 if(item.atWill || ((item.isFocusSpell || item.isCantrip) && fpCost === 0) || ((this.actor.system.resources.focus?.value ?? 0)) >= fpCost) {
                     if(item.toChat) item.toChat(e);
@@ -687,9 +715,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
             } else {
                 if(item.execute) item.execute();
                 else if(item.roll) {
-                    let mapFlag = this.actor.getFlag(BG3CONFIG.MODULE_NAME, "advState"),
-                        map = mapFlag === 'advBtn' ? 1 : (mapFlag === 'disBtn' ? 2 : 0),
-                        variant = item.variants?.[map];
+                    let variant = item.variants?.[map];
                     used = await (variant ?? item).roll({event: e});
                 }
                 else if(item.use) {
@@ -738,7 +764,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                 data = {...data, ...{
                         uuid: itemData.slug ?? itemData.uuid,
                         name: itemData.name ?? itemData.label,
-                        icon: itemData.img ?? itemData.item?.linkedWeapon?.img ?? itemData.item?.img ?? 'icons/svg/book.svg',
+                        icon: await BG3UTILS.getImg(itemData, {element: this.data.item.element}),
                         actionType: this.getActionType(itemData),
                         itemType: itemData.type,
                         quantity: itemData.system?.quantity && itemData.system?.quantity > 1 ? itemData.system?.quantity : false
@@ -819,6 +845,32 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                                 }
                             };
                         }
+                    }
+                }
+
+                if(this.data?.item?.slug === 'elemental-blast') {
+                    console.log(item)
+                    btns.ranged = {
+                        label : game.i18n.localize("PF2E.NPCAttackRanged"),
+                        icon : "fas fa-meteor fa-rotate-180",
+                        click : () => {
+                            this.data.item.ranged = !this.data.item.ranged;
+                            ui.BG3HOTBAR.manager.persist();
+                        },
+                        custom: this.data.item.ranged ? '<i class="fa-solid fa-check"></i>' : null
+                    };
+                    const blast = new game.pf2e.ElementalBlast(this.actor),
+                        blastConfig = BG3UTILS.getBlastDamages(blast, this.data.item.element);
+                    if(blast.configs.find(c => c.element === this.data.item.element)?.damageTypes?.length > 1) {
+                        btns.damageType = {
+                            label : blastConfig?.label ?? 'Untyped',
+                            icon : "fas " + (BG3UTILS.getDamageIcon(blastConfig.value) ?? ''),
+                            click : () => {
+                                const newDamageType = BG3UTILS.getBlastDamages(blast, this.data.item.element, false)?.value;
+                                if(newDamageType) blast.setDamageType({element: this.data.item.element, damageType: newDamageType});
+                            },
+                            custom: this.data.item.ranged ? '<i class="fa-solid fa-check"></i>' : null
+                        };
                     }
                 }
                     
@@ -968,12 +1020,18 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
             let newItem = null,
                 hasUpdate = false;
             if(data.type === 'Action') {
-                const action = ui.BG3HOTBAR.manager.actor?.system.actions[data.index] ?? null;
-                if(action) {
-                    newItem = {slug: action.slug, uuid: action.item?.linkedWeapon?.uuid ?? action.item?.uuid ?? null};
+                if(data.hasOwnProperty('index')) {
+                    const action = ui.BG3HOTBAR.manager.actor?.system.actions[data.index] ?? null;
+                    if(action) {
+                        newItem = {slug: action.slug, uuid: action.item?.linkedWeapon?.uuid ?? action.item?.uuid ?? null};
+                        hasUpdate = true;
+                    }
+                } else if(data.elementTrait && data.uuid) {
+                    newItem = {slug: "elemental-blast", uuid: data.uuid, element: data.elementTrait, ranged: false };
                     hasUpdate = true;
                 }
-            } else {
+            }
+             else {
                 if(data.uuid) {
                     const item = await fromUuid(data.uuid);
                     if(item) {
@@ -1020,7 +1078,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                             const item = game.pf2e.actions.get(uuid) ?? await fromUuid(uuid);
                             if(!item) return;
                             const data = {
-                                    ...(await ui.BG3HOTBAR.tooltipManager.getTooltipDetails(item)),
+                                    ...(await ui.BG3HOTBAR.tooltipManager.getTooltipDetails(item/* , {element: loadingEl} */)),
                                     controlHints: true
                                 },
                                 tooltipTpl = await renderTemplate(`modules/${MODULE_NAME}/templates/tooltips/item-tooltip.hbs`, data);
@@ -1182,7 +1240,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                 const system = item.system ?? item;
 
                 title = game.i18n.localize(item.name);
-                img = item.img ?? item.item?.linkedWeapon?.img ?? item.item?.img ?? 'icons/svg/book.svg';
+                img = await BG3UTILS.getImg(item);
                 if(system) {
                     description = await TextEditor.enrichHTML(game.i18n.localize(system.description?.value ?? system.description));
                     subtitle = system.traits?.rarity ? game.i18n.localize("PF2E.Trait" + BG3UTILS.firstUpper(system.traits?.rarity)) : '';
@@ -1358,6 +1416,25 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         }
     }
 
+    class PF2EDragDropManager extends CONFIG.BG3HUD.MANAGERS.DRAG {
+        constructor() {
+            super();
+        }
+
+        async _isDuplicate(data) {
+            // Check all containers for the UUID
+            for (const container of ui.BG3HOTBAR.manager.containers.hotbar) {
+                for (const item of Object.values(container.items)) {
+                    if (item?.uuid === data.uuid) {
+                        if(item.slug === 'elemental-blast' && data.slug === 'elemental-blast' && item.element !== data.element) return false;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+    }
+
     BG3Hotbar.overrideClass('COMPONENTS.PORTRAIT.CONTAINER', PF2EPortraitContainer);
     BG3Hotbar.overrideClass('COMPONENTS.PORTRAIT.ABILITY', PF2EAbilityContainer);
     BG3Hotbar.overrideClass('COMPONENTS.PORTRAIT.DEATH', PF2EDeathSavesContainer);
@@ -1373,6 +1450,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
     BG3Hotbar.overrideClass('FEATURES.POPULATE', PF2EAutoPopulateFeature);
     BG3Hotbar.overrideClass('MANAGERS.ITEM', PF2EItemUpdateManager);
     BG3Hotbar.overrideClass('BUTTONS.ACTIVE', PF2EActiveButton);
+    BG3Hotbar.overrideClass('MANAGERS.DRAG', PF2EDragDropManager);
 
     game.settings.menus.get(BG3CONFIG.MODULE_NAME + ".menuExtraInfo").type = PF2EExtraInfosDialog;
     game.settings.menus.get(BG3CONFIG.MODULE_NAME + ".chooseCPRActions").type = PF2ECPRActionsDialog;
