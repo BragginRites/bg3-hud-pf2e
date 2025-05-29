@@ -196,9 +196,9 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
         if(item.slug === 'elemental-blast' && args.hasOwnProperty('element')) {
             const blast = new game.pf2e.ElementalBlast(item.actor),
                 thisBlast = blast.configs.find(c => c.element === args.element);
-            return thisBlast.img;
+            if(thisBlast) return thisBlast.img;
         }
-        return item.system?.selfEffect?.img ?? item.img ?? item.item?.linkedWeapon?.img ?? item.item?.img ?? 'icons/svg/book.svg';
+        return item.system?.selfEffect?.img ?? item.grantedBy?.img ?? item.img ?? item.item?.linkedWeapon?.img ?? item.item?.img ?? 'icons/svg/book.svg';
     }
 
     BG3UTILS.getBlastDamages = function(blast, element, active = true) {
@@ -689,6 +689,11 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
             return itemData.spellcasting?.system?.prepared?.value ?? null;
         }
 
+        async isToggled(itemData) {
+            const toggle = this.actor.rules.find(r => (r.item === itemData) && r.toggleable);
+            return toggle !== undefined && toggle.value;
+        }
+
         async useItem(item, e, override) {
             let used = false,
                 options = {},
@@ -718,6 +723,7 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                     let variant = item.variants?.[map];
                     used = await (variant ?? item).roll({event: e});
                 }
+                else if(this.data?.item?.itemToggle) used = await this.data.item.itemToggle()
                 else if(item.use) {
                     options = {
                         configureDialog: false,
@@ -735,6 +741,8 @@ Hooks.on("BG3HotbarInit", async (BG3Hotbar) => {
                 } else if((item.type === "action" || item.type === "feat") && item.system.selfEffect) {
                     const effect = await fromUuid(item.system.selfEffect.uuid);
                     await BG3UTILS.applyEffect(this.actor, this.actor, item, effect);
+                } else if(this.actor.rules.find(r => (r.item === item) && r.toggleable)) {
+                    used = this.actor.rules.find(r => (r.item === item) && r.toggleable).toggle();
                 } else {
                     const settings = {actors: this.actor, event: e}
                     if (game.pf2e.actions[item.system?.slug]) {
