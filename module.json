@@ -1,17 +1,12 @@
 {
     "id": "bg3-hud-pf2e",
-    "title": "BG3 Inspired HUD - PF2e Integration",
+    "title": "BG3 Inspired HUD - PF2e",
     "description": "A PF2e integration module for the BG3 Inspired HUD. This module adapts the core HUD functionality for the Pathfinder 2e system, providing token-specific HUD elements for abilities, spells, and effects.",
     "version": "0.1.0",
     "authors": [
       {
         "name": "BragginRites",
         "discord": "Braggin#1205",
-        "flags": {}
-      },
-      {
-        "name": "Dapoulp",
-        "discord": "Poulp#3418",
         "flags": {}
       }
     ],
