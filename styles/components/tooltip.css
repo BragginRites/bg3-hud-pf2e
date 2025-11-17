@@ -1,0 +1,160 @@
+/**
+ * PF2e Tooltip Styles
+ * Styles for PF2e-specific tooltip templates
+ */
+
+/* PF2e Tooltip Content Container */
+.bg3-tooltip .pf2e-tooltip-content {
+    display: block;
+    width: 100%;
+}
+
+/* Header Section */
+.bg3-tooltip .pf2e-tooltip-content .header {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: var(--bg3-tooltip-spacing, 8px);
+    padding-bottom: var(--bg3-tooltip-spacing, 8px);
+    border-bottom: 1px solid var(--bg3-tooltip-border-color, #2f2f2f);
+}
+
+/* Top Section (Icon + Name) */
+.bg3-tooltip .pf2e-tooltip-content .header .top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+/* Icon/Image Styling - CRITICAL for maintaining size */
+.bg3-tooltip .pf2e-tooltip-content .header .top img {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    max-width: 32px;
+    max-height: 32px;
+    flex-shrink: 0;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid var(--bg3-tooltip-border-color, #2f2f2f);
+    display: block;
+}
+
+/* Name Container (Stacked Layout) */
+.bg3-tooltip .pf2e-tooltip-content .header .top .name.name-stacked {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0; /* Allow text truncation */
+}
+
+/* Title */
+.bg3-tooltip .pf2e-tooltip-content .header .top .name .title {
+    font-weight: bold;
+    font-size: 14px;
+    color: var(--bg3-tooltip-text-color, #ddd);
+    margin: 0;
+    line-height: 1.2;
+    word-wrap: break-word;
+}
+
+/* Subtitle */
+.bg3-tooltip .pf2e-tooltip-content .header .top .name .subtitle {
+    font-size: 11px;
+    color: var(--bg3-tooltip-text-secondary, #999);
+    margin: 0;
+    margin-top: 2px;
+    line-height: 1.2;
+    word-wrap: break-word;
+}
+
+/* Tooltip Tags Container */
+.bg3-tooltip .pf2e-tooltip-content .tooltip-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: var(--bg3-tooltip-spacing, 8px) 0;
+}
+
+/* Individual Tooltip Tag */
+.bg3-tooltip .pf2e-tooltip-content .tooltip-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--bg3-tooltip-text-secondary, #999);
+    white-space: nowrap;
+}
+
+/* Action Cost Tag */
+.bg3-tooltip .pf2e-tooltip-content .tooltip-tag.action-cost {
+    background: rgba(46, 204, 113, 0.2);
+    color: #2ecc71;
+    font-weight: 500;
+}
+
+/* Trait Tag */
+.bg3-tooltip .pf2e-tooltip-content .tooltip-tag.trait {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--bg3-tooltip-text-secondary, #999);
+    text-transform: capitalize;
+}
+
+/* Spell Info Container */
+.bg3-tooltip .pf2e-tooltip-content .tooltip-spell-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: var(--bg3-tooltip-spacing, 8px) 0;
+    padding: 6px 0;
+    border-top: 1px solid var(--bg3-tooltip-border-color, #2f2f2f);
+    border-bottom: 1px solid var(--bg3-tooltip-border-color, #2f2f2f);
+}
+
+/* Spell Level */
+.bg3-tooltip .pf2e-tooltip-content .tooltip-spell-info .spell-level {
+    font-size: 11px;
+    color: var(--bg3-tooltip-text-color, #ddd);
+    font-weight: 500;
+}
+
+/* Spell School */
+.bg3-tooltip .pf2e-tooltip-content .tooltip-spell-info .spell-school {
+    font-size: 11px;
+    color: var(--bg3-tooltip-text-secondary, #999);
+    text-transform: capitalize;
+}
+
+/* Spell Traditions */
+.bg3-tooltip .pf2e-tooltip-content .tooltip-spell-info .spell-traditions {
+    font-size: 11px;
+    color: var(--bg3-tooltip-text-secondary, #999);
+}
+
+/* Description Section */
+.bg3-tooltip .pf2e-tooltip-content .description {
+    margin: var(--bg3-tooltip-spacing, 8px) 0;
+    color: var(--bg3-tooltip-text-color, #ddd);
+    line-height: 1.4;
+}
+
+.bg3-tooltip .pf2e-tooltip-content .description p {
+    margin: 0.5em 0;
+}
+
+.bg3-tooltip .pf2e-tooltip-content .description p:first-child {
+    margin-top: 0;
+}
+
+.bg3-tooltip .pf2e-tooltip-content .description p:last-child {
+    margin-bottom: 0;
+}
+
+/* Ensure content is visible */
+.bg3-tooltip.visible .pf2e-tooltip-content {
+    display: block !important;
+    visibility: visible !important;
+}
+

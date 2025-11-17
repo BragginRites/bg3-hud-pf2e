@@ -1,0 +1,24 @@
+{
+    "BG3HUD": {
+        "EndTurn": "End Turn",
+        "Rest": "Rest",
+        "RestTooltip": "Rest (Ctrl: 10-min, Alt: 1-hour, Shift: 8-hour)"
+    },
+    "PF2E": {
+        "ActionCost": "{0} Action{1}",
+        "ActionsRemaining": "Actions Remaining: {0}/3",
+        "SelectRestType": "Select Rest Type",
+        "TenMinuteRest": "10-Minute Rest",
+        "OneHourRest": "1-Hour Rest",
+        "EightHourRest": "8-Hour Rest",
+        "SelectPassiveFeats": "Select Passive Feats",
+        "Proficiency": {
+            "Untrained": "Untrained",
+            "Trained": "Trained",
+            "Expert": "Expert",
+            "Master": "Master",
+            "Legendary": "Legendary"
+        }
+    }
+}
+

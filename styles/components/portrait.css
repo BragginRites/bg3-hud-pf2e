@@ -1,0 +1,125 @@
+/**
+ * PF2e Portrait Styles
+ */
+
+/* PF2e-specific portrait styling */
+.bg3-portrait-container {
+    position: relative;
+}
+
+/* Damage overlay height from CSS variable */
+.bg3-portrait-container .damage-overlay {
+    height: calc(var(--damage-percent, 0) * 1%);
+    opacity: 1;
+}
+
+/* ==========================================================================
+   HP Text Display (positioned on portrait, matching dnd5e)
+   ========================================================================== */
+
+#bg3-hotbar-container .hp-text {
+    position: absolute;
+    bottom: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+    font-size: 1.2em;
+    font-weight: bold;
+    text-align: center;
+    width: 100%;
+    z-index: 20;
+}
+
+#bg3-hotbar-container .temp-hp-text {
+    color: #7bb3e8;
+    font-size: 1.2em;
+    margin-bottom: 0;
+    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+
+#bg3-hotbar-container .hp-label {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#bg3-hotbar-container .hp-label,
+#bg3-hotbar-container .hp-controls {
+    height: 1.75em;
+}
+
+/* ==========================================================================
+   HP Controls (shown on hover)
+   ========================================================================== */
+
+#bg3-hotbar-container .hp-controls {
+    align-items: center;
+    justify-content: center;
+    margin: 0 1rem;
+    display: none;
+}
+
+/* Show HP controls on portrait hover */
+#bg3-hotbar-container .bg3-portrait-container:has(.hp-controls):has(.portrait-image-container:hover) .hp-label,
+#bg3-hotbar-container .hp-text:hover .hp-label,
+#bg3-hotbar-container .hp-text[data-hp-locked="true"] .hp-label {
+    display: none;
+}
+
+#bg3-hotbar-container .bg3-portrait-container:has(.hp-controls):has(.portrait-image-container:hover) .hp-controls,
+#bg3-hotbar-container .hp-text:hover .hp-controls,
+#bg3-hotbar-container .hp-text[data-hp-locked="true"] .hp-controls {
+    display: flex;
+}
+
+#bg3-hotbar-container .hp-controls > * {
+    flex: 1;
+}
+
+#bg3-hotbar-container .hp-controls i {
+    font-size: larger;
+}
+
+#bg3-hotbar-container .hp-controls > .hp-control-death {
+    cursor: pointer;
+    padding-right: 0.25rem;
+}
+
+#bg3-hotbar-container .hp-controls > .hp-control-full {
+    cursor: pointer;
+    padding-left: 0.25rem;
+}
+
+#bg3-hotbar-container .hp-controls > .hp-control-death {
+    color: red;
+}
+
+#bg3-hotbar-container .hp-controls > .hp-control-full {
+    color: #74cf00;
+}
+
+#bg3-hotbar-container .hp-controls input {
+    background: url(../../../../../ui/parchment.jpg) repeat;
+    flex: 2;
+    text-align: center;
+    color: var(--color-text-dark-primary, #000);
+    border: 1px solid #666;
+    border-radius: 3px;
+    padding: 2px 4px;
+}
+
+#bg3-hotbar-container .hp-controls input:focus {
+    outline: 1px solid #fff;
+}
+
+/* Action counter display */
+.bg3-action-buttons-container .action-counter-button {
+    background: rgba(52, 152, 219, 0.2);
+    border: 1px solid rgba(52, 152, 219, 0.5);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-weight: bold;
+    pointer-events: none; /* Display only, not clickable */
+}
+
