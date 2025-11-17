@@ -1,0 +1,15 @@
+/**
+ * PF2e Filter Styles
+ * All filters use the base background color variable
+ */
+
+/* All filter buttons use the same base background */
+.bg3-filter-container .action-cost-button,
+.bg3-filter-container .trait-button,
+.bg3-filter-container .spell-level-button,
+.bg3-filter-container .spell-type-button,
+.bg3-filter-container .item-type-button {
+    background: var(--bg3-background, #1a1a1a);
+    border-radius: 4px;
+}
+

@@ -1,0 +1,38 @@
+<section class="content pf2e-tooltip-content">
+    <section class="header">
+        <div class="top">
+            <img src="{{ img }}" alt="{{ name }}">
+            <div class="name name-stacked">
+                <span class="title">{{ name }}</span>
+                <span class="subtitle">{{ subtitle }}</span>
+            </div>
+        </div>
+    </section>
+    {{#if actionCostLabel}}
+    <div class="tooltip-tags">
+        <span class="tooltip-tag action-cost">{{ actionCostLabel }}</span>
+    </div>
+    {{/if}}
+    {{#if traits}}
+    <div class="tooltip-tags">
+        {{#each traits}}
+        <span class="tooltip-tag trait">{{ this }}</span>
+        {{/each}}
+    </div>
+    {{/if}}
+    {{#if isSpell}}
+    <div class="tooltip-spell-info">
+        {{#if level}}
+        <span class="spell-level">Level {{ level }}</span>
+        {{/if}}
+        {{#if school}}
+        <span class="spell-school">{{ school }}</span>
+        {{/if}}
+        {{#if traditions}}
+        <span class="spell-traditions">{{ traditions }}</span>
+        {{/if}}
+    </div>
+    {{/if}}
+    <section class="description">{{{ description }}}</section>
+</section>
+

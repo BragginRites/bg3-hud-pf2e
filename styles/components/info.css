@@ -1,0 +1,58 @@
+/**
+ * PF2e Info Container Styles
+ */
+
+/* Proficiency tier indicators */
+.bg3-info-skill-proficiency {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    background: rgba(52, 152, 219, 0.2);
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: bold;
+    margin-left: 4px;
+    color: #3498db;
+}
+
+/* Skill and save displays */
+.bg3-info-skill,
+.bg3-info-save {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 8px;
+    margin: 2px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.bg3-info-skill:hover,
+.bg3-info-save:hover {
+    background-color: rgba(52, 152, 219, 0.1);
+}
+
+/* Ability scores */
+.bg3-info-ability {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    margin: 2px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.bg3-info-ability:hover {
+    background-color: rgba(52, 152, 219, 0.1);
+}
+
+.bg3-info-ability.selected {
+    background-color: rgba(52, 152, 219, 0.2);
+    border: 1px solid rgba(52, 152, 219, 0.5);
+}
+
