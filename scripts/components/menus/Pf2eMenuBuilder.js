@@ -1,5 +1,7 @@
 import { MenuBuilder } from '/modules/bg3-hud-core/scripts/components/ui/MenuBuilder.js';
 
+const MODULE_ID = 'bg3-hud-pf2e';
+
 /**
  * PF2e Menu Builder
  * Provides PF2e specific menu items for portrait, abilities, settings, and lock menus
@@ -17,7 +19,7 @@ export class Pf2eMenuBuilder extends MenuBuilder {
         // Token image option
         items.push({
             key: 'token',
-            label: 'Use Token Image',
+            label: game.i18n.localize(`${MODULE_ID}.Menu.UseTokenImage`),
             icon: 'fas fa-chess-pawn',
             onClick: async () => {
                 await portraitContainer.updateImagePreference?.();
@@ -27,7 +29,7 @@ export class Pf2eMenuBuilder extends MenuBuilder {
         // Character portrait option
         items.push({
             key: 'portrait',
-            label: 'Use Character Portrait',
+            label: game.i18n.localize(`${MODULE_ID}.Menu.UseCharacterPortrait`),
             icon: 'fas fa-user',
             onClick: async () => {
                 await portraitContainer.updateImagePreference?.();

@@ -2,23 +2,124 @@
     "BG3HUD": {
         "EndTurn": "End Turn",
         "Rest": "Rest",
-        "RestTooltip": "Rest (Ctrl: 10-min, Alt: 1-hour, Shift: 8-hour)"
+        "RestTooltip": "Recover - Daily Preparations"
     },
-    "PF2E": {
-        "ActionCost": "{0} Action{1}",
-        "ActionsRemaining": "Actions Remaining: {0}/3",
-        "SelectRestType": "Select Rest Type",
-        "TenMinuteRest": "10-Minute Rest",
-        "OneHourRest": "1-Hour Rest",
-        "EightHourRest": "8-Hour Rest",
-        "SelectPassiveFeats": "Select Passive Feats",
-        "Proficiency": {
-            "Untrained": "Untrained",
-            "Trained": "Trained",
-            "Expert": "Expert",
-            "Master": "Master",
-            "Legendary": "Legendary"
+    "bg3-hud-pf2e": {
+        "PF2E": {
+            "ActionCost": "{0} Action{1}",
+            "ActionsRemaining": "Actions Remaining: {0}/3",
+            "SelectRestType": "Select Rest Type",
+            "TenMinuteRest": "10-Minute Rest",
+            "OneHourRest": "1-Hour Rest",
+            "EightHourRest": "8-Hour Rest",
+            "SelectPassiveFeats": "Select Passive Feats",
+            "Proficiency": {
+                "Untrained": "Untrained",
+                "Trained": "Trained",
+                "Expert": "Expert",
+                "Master": "Master",
+                "Legendary": "Legendary"
+            }
+        },
+        "Settings": {
+            "AutoPopulateConfiguration": "Auto-populate Configuration",
+            "ConfigureAutoPopulateGrids": "Configure Auto-populate Grids",
+            "ConfigureGrids": "Configure Grids",
+            "ConfigureGridsHint": "Configure which item types to auto-populate in each grid when a token is created",
+            "AutoPopulatePassives": "Auto-populate Passives",
+            "AutoPopulatePassivesHint": "Automatically populate passives container with feats that have no action cost when a token is created",
+            "ShowItemNames": "Show Item Names",
+            "ShowItemNamesHint": "Display item names on hotbar cells",
+            "ShowItemUses": "Show Item Uses",
+            "ShowItemUsesHint": "Display remaining uses on items that have limited uses",
+            "AutoPopulateOnTokenCreation": "Auto-populate on Token Creation",
+            "AutoPopulateOnTokenCreationHint": "Automatically populate hotbar grids with items when a token is created",
+            "AutoPopulateConfigurationHint": "Configure which item types to auto-populate in each grid (restricted to GM)"
+        },
+        "AutoPopulate": {
+            "Groups": {
+                "Combat": "Combat",
+                "Consumables": "Consumables",
+                "Equipment": "Equipment",
+                "Spellcasting": "Spellcasting"
+            },
+            "ItemTypes": {
+                "Weapons": "Weapons",
+                "Attacks": "Attacks",
+                "Actions": "Actions",
+                "Feats": "Feats",
+                "Spells": "Spells",
+                "Consumables": "Consumables",
+                "Equipment": "Equipment",
+                "Armor": "Armor",
+                "Shields": "Shields",
+                "FocusSpells": "Focus Spells"
+            }
+        },
+        "Filters": {
+            "Action": "Action",
+            "Actions": "Actions",
+            "FocusSpell": "Focus Spell",
+            "SpellLevel": "Spell Level",
+            "Weapon": "Weapon",
+            "Feat": "Feat",
+            "Traits": {
+                "Attack": "Attack",
+                "Manipulate": "Manipulate",
+                "Concentrate": "Concentrate",
+                "Move": "Move",
+                "Exploration": "Exploration"
+            }
+        },
+        "Info": {
+            "SkillsHeader": "Skills",
+            "SavesHeader": "Saves",
+            "Abilities": {
+                "Strength": "Strength",
+                "Dexterity": "Dexterity",
+                "Constitution": "Constitution",
+                "Intelligence": "Intelligence",
+                "Wisdom": "Wisdom",
+                "Charisma": "Charisma"
+            },
+            "Skills": {
+                "Acrobatics": "Acrobatics",
+                "Arcana": "Arcana",
+                "Athletics": "Athletics",
+                "Crafting": "Crafting",
+                "Deception": "Deception",
+                "Diplomacy": "Diplomacy",
+                "Intimidation": "Intimidation",
+                "Medicine": "Medicine",
+                "Nature": "Nature",
+                "Occultism": "Occultism",
+                "Performance": "Performance",
+                "Religion": "Religion",
+                "Society": "Society",
+                "Stealth": "Stealth",
+                "Survival": "Survival",
+                "Thievery": "Thievery"
+            },
+            "Saves": {
+                "Fortitude": "Fortitude",
+                "Reflex": "Reflex",
+                "Will": "Will"
+            }
+        },
+        "Menu": {
+            "UseTokenImage": "Use Token Image",
+            "UseCharacterPortrait": "Use Character Portrait"
+        },
+        "Notifications": {
+            "AutoPopulateSystemNotAvailable": "Auto-populate system not available",
+            "NoItemTypesAvailable": "No item types available for configuration",
+            "AutoPopulateConfigurationSaved": "Auto-populate configuration saved",
+            "ItemNotFound": "Item not found",
+            "ItemCannotBeUsed": "Item cannot be used",
+            "MacroNotFound": "Macro not found",
+            "FailedToPerformRest": "Failed to perform rest",
+            "FailedToRollInitiative": "Failed to roll initiative",
+            "SlotOccupiedByTwoHandedWeapon": "This slot is occupied by a two-handed weapon"
         }
     }
 }
-

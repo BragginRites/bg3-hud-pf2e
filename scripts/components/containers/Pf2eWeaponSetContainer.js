@@ -135,7 +135,7 @@ export async function createPf2eWeaponSetContainer() {
         shouldPreventDrop(targetCell) {
             // Prevent drop on locked cells (two-handed duplicates)
             if (this.isCellLocked(targetCell)) {
-                ui.notifications.warn('This slot is occupied by a two-handed weapon');
+                ui.notifications.warn(game.i18n.localize('bg3-hud-pf2e.Notifications.SlotOccupiedByTwoHandedWeapon'));
                 return true;
             }
             return false;

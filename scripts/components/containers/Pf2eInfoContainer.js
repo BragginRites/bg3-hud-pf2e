@@ -1,5 +1,30 @@
 import { InfoContainer } from '/modules/bg3-hud-core/scripts/components/containers/InfoContainer.js';
 
+const MODULE_ID = 'bg3-hud-pf2e';
+
+/**
+ * Canonical skill ID mapping for PF2e v7.7.2+
+ * Maps short IDs to full canonical skill names
+ */
+const CANONICAL_SKILL_IDS = {
+    acr: "acrobatics",
+    arc: "arcana",
+    ath: "athletics",
+    cra: "crafting",
+    dec: "deception",
+    dip: "diplomacy",
+    itm: "intimidation",
+    med: "medicine",
+    nat: "nature",
+    occ: "occultism",
+    prf: "performance",
+    rel: "religion",
+    soc: "society",
+    ste: "stealth",
+    sur: "survival",
+    thi: "thievery"
+};
+
 /**
  * PF2e Info Container
  * Displays ability scores, skills with proficiency tiers, and saving throws
@@ -50,7 +75,7 @@ export class Pf2eInfoContainer extends InfoContainer {
             }
         } catch (err) {
             console.error('Pf2e Info | Initiative roll failed', err);
-            ui.notifications?.error('Failed to roll initiative');
+            ui.notifications?.error(game.i18n.localize(`${MODULE_ID}.Notifications.FailedToRollInitiative`));
         }
     }
 
@@ -98,8 +123,14 @@ export class Pf2eInfoContainer extends InfoContainer {
      * @private
      */
     _getProficiencyLabel(tier) {
-        const labels = ['Untrained', 'Trained', 'Expert', 'Master', 'Legendary'];
-        return labels[tier] || 'Untrained';
+        const labels = [
+            game.i18n.localize(`${MODULE_ID}.PF2E.Proficiency.Untrained`),
+            game.i18n.localize(`${MODULE_ID}.PF2E.Proficiency.Trained`),
+            game.i18n.localize(`${MODULE_ID}.PF2E.Proficiency.Expert`),
+            game.i18n.localize(`${MODULE_ID}.PF2E.Proficiency.Master`),
+            game.i18n.localize(`${MODULE_ID}.PF2E.Proficiency.Legendary`)
+        ];
+        return labels[tier] || labels[0];
     }
 
     /**
@@ -112,17 +143,17 @@ export class Pf2eInfoContainer extends InfoContainer {
 
         const abilities = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
         const abilityNames = {
-            str: 'Strength',
-            dex: 'Dexterity',
-            con: 'Constitution',
-            int: 'Intelligence',
-            wis: 'Wisdom',
-            cha: 'Charisma'
+            str: game.i18n.localize(`${MODULE_ID}.Info.Abilities.Strength`),
+            dex: game.i18n.localize(`${MODULE_ID}.Info.Abilities.Dexterity`),
+            con: game.i18n.localize(`${MODULE_ID}.Info.Abilities.Constitution`),
+            int: game.i18n.localize(`${MODULE_ID}.Info.Abilities.Intelligence`),
+            wis: game.i18n.localize(`${MODULE_ID}.Info.Abilities.Wisdom`),
+            cha: game.i18n.localize(`${MODULE_ID}.Info.Abilities.Charisma`)
         };
 
         for (const abilityId of abilities) {
             const ability = this.actor.system.abilities[abilityId];
-            const modifier = ability?.mod || 0;
+            const modifier = ability?.mod ?? 0;
 
             const abilityDiv = this.createElement('div', ['bg3-info-ability']);
             
@@ -138,37 +169,14 @@ export class Pf2eInfoContainer extends InfoContainer {
             if (modifier >= 0) {
                 modifierSpan.classList.add('positive');
             }
-            modifierSpan.textContent = modifier >= 0 ? `+${modifier}` : modifier;
+            // Display raw numeric modifier; '+' is added via CSS for positive values
+            modifierSpan.textContent = modifier;
 
             // Click to expand and show related skills
             this.addEventListener(abilityDiv, 'click', async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 await this._onAbilityClick(abilityId);
-            });
-            
-            // Right-click to roll ability check
-            this.addEventListener(abilityDiv, 'contextmenu', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                if (!this.actor?.system?.abilities?.[abilityId]) {
-                    console.warn('Pf2e Info | Ability data not ready', { abilityId });
-                    return;
-                }
-                
-                try {
-                    // PF2e ability check roll
-                    if (typeof this.actor.rollSkill === 'function') {
-                        // PF2e uses rollSkill for ability checks
-                        this.actor.rollSkill({
-                            skill: abilityId,
-                            event: e
-                        });
-                    }
-                } catch (err) {
-                    console.error('Pf2e Info | Ability check roll failed', { abilityId, error: err });
-                }
             });
 
             abilityDiv.appendChild(nameSpan);
@@ -192,29 +200,35 @@ export class Pf2eInfoContainer extends InfoContainer {
             return column;
         }
 
+        // PF2e v7.7.2+ requires actor.skills to be ready
+        if (!this.actor?.skills) {
+            console.warn('Pf2e Info | Skill data not ready');
+            return column;
+        }
+
         // Header
         const header = this.createElement('div', ['bg3-info-section-header']);
-        header.textContent = 'Skills';
+        header.textContent = game.i18n.localize(`${MODULE_ID}.Info.SkillsHeader`);
         column.appendChild(header);
 
         // PF2e skills mapped to abilities
         const skills = {
-            acr: { name: 'Acrobatics', ability: 'dex' },
-            arc: { name: 'Arcana', ability: 'int' },
-            ath: { name: 'Athletics', ability: 'str' },
-            cra: { name: 'Crafting', ability: 'int' },
-            dec: { name: 'Deception', ability: 'cha' },
-            dip: { name: 'Diplomacy', ability: 'cha' },
-            itm: { name: 'Intimidation', ability: 'cha' },
-            med: { name: 'Medicine', ability: 'wis' },
-            nat: { name: 'Nature', ability: 'wis' },
-            occ: { name: 'Occultism', ability: 'int' },
-            prf: { name: 'Performance', ability: 'cha' },
-            rel: { name: 'Religion', ability: 'wis' },
-            soc: { name: 'Society', ability: 'int' },
-            ste: { name: 'Stealth', ability: 'dex' },
-            sur: { name: 'Survival', ability: 'wis' },
-            thi: { name: 'Thievery', ability: 'dex' }
+            acr: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Acrobatics`), ability: 'dex' },
+            arc: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Arcana`), ability: 'int' },
+            ath: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Athletics`), ability: 'str' },
+            cra: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Crafting`), ability: 'int' },
+            dec: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Deception`), ability: 'cha' },
+            dip: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Diplomacy`), ability: 'cha' },
+            itm: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Intimidation`), ability: 'cha' },
+            med: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Medicine`), ability: 'wis' },
+            nat: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Nature`), ability: 'wis' },
+            occ: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Occultism`), ability: 'int' },
+            prf: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Performance`), ability: 'cha' },
+            rel: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Religion`), ability: 'wis' },
+            soc: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Society`), ability: 'int' },
+            ste: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Stealth`), ability: 'dex' },
+            sur: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Survival`), ability: 'wis' },
+            thi: { name: game.i18n.localize(`${MODULE_ID}.Info.Skills.Thievery`), ability: 'dex' }
         };
 
         for (const [skillId, skillData] of Object.entries(skills)) {
@@ -223,9 +237,18 @@ export class Pf2eInfoContainer extends InfoContainer {
                 continue;
             }
             
-            const skill = this.actor.system.skills[skillId];
-            const total = skill?.value || 0;
-            const proficiency = skill?.rank || 0; // 0-4 for proficiency tier
+            // PF2e v7.7.2+ uses canonical skill IDs (e.g., "athletics" not "ath")
+            const skillIdCanonical = CANONICAL_SKILL_IDS[skillId];
+            if (!skillIdCanonical) {
+                console.warn('Pf2e Info | Unknown skill ID', { skillId });
+                continue;
+            }
+            
+            // PF2e v7.7.2+ skills are on actor.skills with canonical IDs
+            const skill = this.actor.skills?.[skillIdCanonical];
+            // PF2e v7.7.2+ uses 'mod' for the total modifier value
+            const total = skill?.mod ?? skill?.value ?? 0;
+            const proficiency = skill?.rank ?? 0; // 0-4 for proficiency tier
 
             const skillDiv = this.createElement('div', ['bg3-info-skill']);
 
@@ -236,7 +259,8 @@ export class Pf2eInfoContainer extends InfoContainer {
             if (total >= 0) {
                 modifierSpan.classList.add('positive');
             }
-            modifierSpan.textContent = total >= 0 ? `+${total}` : total;
+            // Display raw total; '+' is added via CSS for positive values
+            modifierSpan.textContent = total;
             
             // Add proficiency tier indicator
             if (proficiency > 0) {
@@ -251,21 +275,21 @@ export class Pf2eInfoContainer extends InfoContainer {
                 e.preventDefault();
                 e.stopPropagation();
                 
-                if (!this.actor?.system?.skills?.[skillId]) {
-                    console.warn('Pf2e Info | Skill data not ready', { skillId });
+                const skillObj = this.actor.skills?.[skillIdCanonical];
+                if (!skillObj) {
+                    console.warn('Pf2e Info | Skill not found', { skillIdCanonical });
                     return;
                 }
                 
                 try {
-                    // PF2e skill roll
-                    if (typeof this.actor.rollSkill === 'function') {
-                        this.actor.rollSkill({
-                            skill: skillId,
-                            event: e
-                        });
+                    // PF2e v7.7.2+ uses skill.roll(event)
+                    if (typeof skillObj.roll === 'function') {
+                        skillObj.roll({ event: e });
+                    } else {
+                        console.warn('Pf2e Info | No compatible skill roll method', { skillIdCanonical });
                     }
                 } catch (err) {
-                    console.error('Pf2e Info | Skill roll failed', { skillId, error: err });
+                    console.error('Pf2e Info | Skill roll failed', { skillIdCanonical, error: err });
                 }
             });
 
@@ -288,18 +312,20 @@ export class Pf2eInfoContainer extends InfoContainer {
 
         // Header
         const header = this.createElement('div', ['bg3-info-section-header']);
-        header.textContent = 'Saves';
+        header.textContent = game.i18n.localize(`${MODULE_ID}.Info.SavesHeader`);
         column.appendChild(header);
 
         const saves = [
-            { id: 'fortitude', name: 'Fortitude', key: 'fortitude' },
-            { id: 'reflex', name: 'Reflex', key: 'reflex' },
-            { id: 'will', name: 'Will', key: 'will' }
+            { id: 'fortitude', name: game.i18n.localize(`${MODULE_ID}.Info.Saves.Fortitude`), key: 'fortitude' },
+            { id: 'reflex', name: game.i18n.localize(`${MODULE_ID}.Info.Saves.Reflex`), key: 'reflex' },
+            { id: 'will', name: game.i18n.localize(`${MODULE_ID}.Info.Saves.Will`), key: 'will' }
         ];
 
         for (const save of saves) {
-            const saveData = this.actor.system.saves[save.key];
-            const total = saveData?.value || 0;
+            // PF2e v7.7.2+ saves are on actor.saves (NOT actor.system.saves)
+            const saveObj = this.actor.saves?.[save.key];
+            // PF2e v7.7.2+ uses 'mod' for the total modifier value
+            const total = saveObj?.mod ?? saveObj?.value ?? 0;
 
             const saveDiv = this.createElement('div', ['bg3-info-save']);
 
@@ -310,25 +336,26 @@ export class Pf2eInfoContainer extends InfoContainer {
             if (total >= 0) {
                 modifierSpan.classList.add('positive');
             }
-            modifierSpan.textContent = total >= 0 ? `+${total}` : total;
+            // Display raw total; '+' is added via CSS for positive values
+            modifierSpan.textContent = total;
 
             // Click to roll saving throw
             this.addEventListener(saveDiv, 'click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 
-                if (!this.actor?.system?.saves?.[save.key]) {
-                    console.warn('Pf2e Info | Save data not ready', { save: save.key });
+                const saveObj = this.actor.saves?.[save.key];
+                if (!saveObj) {
+                    console.warn('Pf2e Info | Save not found', { save: save.key });
                     return;
                 }
                 
                 try {
-                    // PF2e saving throw roll
-                    if (typeof this.actor.rollSavingThrow === 'function') {
-                        this.actor.rollSavingThrow({
-                            type: save.key,
-                            event: e
-                        });
+                    // PF2e v7.7.2+ uses save.roll(event)
+                    if (typeof saveObj.roll === 'function') {
+                        saveObj.roll({ event: e });
+                    } else {
+                        console.warn('Pf2e Info | No compatible save roll method', { save: save.key });
                     }
                 } catch (err) {
                     console.error('Pf2e Info | Save roll failed', { save: save.key, error: err });

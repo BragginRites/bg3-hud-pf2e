@@ -161,7 +161,7 @@ class Pf2eAdapter {
     async _useItem(uuid, event) {
         const item = await fromUuid(uuid);
         if (!item) {
-            ui.notifications.warn('Item not found');
+            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ItemNotFound`));
             return;
         }
 
@@ -173,7 +173,7 @@ class Pf2eAdapter {
         } else if (typeof item.toMessage === 'function') {
             await item.toMessage();
         } else {
-            ui.notifications.warn('Item cannot be used');
+            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ItemCannotBeUsed`));
         }
     }
 
@@ -185,7 +185,7 @@ class Pf2eAdapter {
     async _executeMacro(uuid) {
         const macro = await fromUuid(uuid);
         if (!macro) {
-            ui.notifications.warn('Macro not found');
+            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.MacroNotFound`));
             return;
         }
 

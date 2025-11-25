@@ -1,5 +1,7 @@
 import { AutoPopulateFramework } from '/modules/bg3-hud-core/scripts/features/AutoPopulateFramework.js';
 
+const MODULE_ID = 'bg3-hud-pf2e';
+
 /**
  * PF2e Auto Populate Implementation
  * Provides PF2e-specific item filtering and population logic
@@ -12,32 +14,33 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
     async getItemTypeChoices() {
         return [
             {
-                group: 'Combat',
+                group: game.i18n.localize(`${MODULE_ID}.AutoPopulate.Groups.Combat`),
                 choices: [
-                    { value: 'weapon', label: 'Weapons' },
-                    { value: 'action', label: 'Actions' },
-                    { value: 'feat', label: 'Feats' },
-                    { value: 'spell', label: 'Spells' }
+                    { value: 'weapon', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Weapons`) },
+                    { value: 'attack', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Attacks`) },
+                    { value: 'action', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Actions`) },
+                    { value: 'feat', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Feats`) },
+                    { value: 'spell', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Spells`) }
                 ]
             },
             {
-                group: 'Consumables',
+                group: game.i18n.localize(`${MODULE_ID}.AutoPopulate.Groups.Consumables`),
                 choices: [
-                    { value: 'consumable', label: 'Consumables' }
+                    { value: 'consumable', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Consumables`) }
                 ]
             },
             {
-                group: 'Equipment',
+                group: game.i18n.localize(`${MODULE_ID}.AutoPopulate.Groups.Equipment`),
                 choices: [
-                    { value: 'equipment', label: 'Equipment' },
-                    { value: 'armor', label: 'Armor' },
-                    { value: 'shield', label: 'Shields' }
+                    { value: 'equipment', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Equipment`) },
+                    { value: 'armor', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Armor`) },
+                    { value: 'shield', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Shields`) }
                 ]
             },
             {
-                group: 'Spellcasting',
+                group: game.i18n.localize(`${MODULE_ID}.AutoPopulate.Groups.Spellcasting`),
                 choices: [
-                    { value: 'spell:focus', label: 'Focus Spells' }
+                    { value: 'spell:focus', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.FocusSpells`) }
                 ]
             }
         ];
@@ -64,8 +67,12 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
                 continue;
             }
 
+            // Check if this is an attack (melee/ranged item with action: strike)
+            const isAttack = (item.type === 'melee' || item.type === 'ranged') && item.system?.action === 'strike';
+            
             // For actions/feats, check if they have action cost (exclude passives)
-            if ((item.type === 'action' || item.type === 'feat') && !this._hasActions(item)) {
+            // Attacks are always included regardless of action cost
+            if (!isAttack && (item.type === 'action' || item.type === 'feat') && !this._hasActions(item)) {
                 continue;
             }
 
@@ -96,6 +103,11 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
                     return traits.includes('focus');
                 }
             } else {
+                // Handle special type: "attack" (melee/ranged items with action: strike)
+                if (selectedType === 'attack') {
+                    return (item.type === 'melee' || item.type === 'ranged') && item.system?.action === 'strike';
+                }
+                
                 // Handle main type (e.g., "weapon", "feat", "spell")
                 if (item.type === selectedType) return true;
             }

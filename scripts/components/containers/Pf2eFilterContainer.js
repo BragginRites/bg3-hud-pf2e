@@ -1,5 +1,7 @@
 import { FilterContainer } from '/modules/bg3-hud-core/scripts/components/containers/FilterContainer.js';
 
+const MODULE_ID = 'bg3-hud-pf2e';
+
 /**
  * PF2e Filter Container
  * Provides action cost, trait, and spell level filters for PF2e
@@ -31,7 +33,7 @@ export class Pf2eFilterContainer extends FilterContainer {
         
         filters.push({
             id: 'action-1',
-            label: 'Action',
+            label: game.i18n.localize(`${MODULE_ID}.Filters.Action`),
             short: '1',
             classes: ['action-cost-button'],
             color: actionColor,
@@ -42,7 +44,7 @@ export class Pf2eFilterContainer extends FilterContainer {
 
         filters.push({
             id: 'action-2',
-            label: 'Actions',
+            label: game.i18n.localize(`${MODULE_ID}.Filters.Actions`),
             short: '2',
             classes: ['action-cost-button'],
             color: actionColor,
@@ -53,7 +55,7 @@ export class Pf2eFilterContainer extends FilterContainer {
 
         filters.push({
             id: 'action-3',
-            label: 'Actions',
+            label: game.i18n.localize(`${MODULE_ID}.Filters.Actions`),
             short: '3',
             classes: ['action-cost-button'],
             color: actionColor,
@@ -81,9 +83,10 @@ export class Pf2eFilterContainer extends FilterContainer {
 
         for (const trait of commonTraits) {
             if (actorTraits.has(trait)) {
+                const traitKey = trait.charAt(0).toUpperCase() + trait.slice(1);
                 filters.push({
                     id: `trait-${trait}`,
-                    label: trait.charAt(0).toUpperCase() + trait.slice(1),
+                    label: game.i18n.localize(`${MODULE_ID}.Filters.Traits.${traitKey}`) || traitKey,
                     symbol: 'fa-tag',
                     classes: ['trait-button'],
                     color: traitColors[trait] || '#95a5a6',
@@ -99,7 +102,7 @@ export class Pf2eFilterContainer extends FilterContainer {
         if (hasFocusSpells) {
             filters.push({
                 id: 'focus-spell',
-                label: 'Focus Spell',
+                label: game.i18n.localize(`${MODULE_ID}.Filters.FocusSpell`),
                 symbol: 'fa-star',
                 classes: ['spell-type-button'],
                 color: '#9b59b6',
@@ -116,7 +119,7 @@ export class Pf2eFilterContainer extends FilterContainer {
             if (spellLevel?.max > 0) {
                 filters.push({
                     id: 'spell',
-                    label: 'Spell Level',
+                    label: game.i18n.localize(`${MODULE_ID}.Filters.SpellLevel`),
                     short: this._getRomanNumeral(level),
                     classes: ['spell-level-button'],
                     color: '#8e44ad',
@@ -130,7 +133,7 @@ export class Pf2eFilterContainer extends FilterContainer {
         // Item type filters
         filters.push({
             id: 'weapon',
-            label: 'Weapon',
+            label: game.i18n.localize(`${MODULE_ID}.Filters.Weapon`),
             symbol: 'fa-sword',
             classes: ['item-type-button'],
             color: '#e74c3c',
@@ -139,7 +142,7 @@ export class Pf2eFilterContainer extends FilterContainer {
 
         filters.push({
             id: 'action',
-            label: 'Action',
+            label: game.i18n.localize(`${MODULE_ID}.Filters.Action`),
             symbol: 'fa-hand-fist',
             classes: ['item-type-button'],
             color: '#3498db',
@@ -148,7 +151,7 @@ export class Pf2eFilterContainer extends FilterContainer {
 
         filters.push({
             id: 'feat',
-            label: 'Feat',
+            label: game.i18n.localize(`${MODULE_ID}.Filters.Feat`),
             symbol: 'fa-star',
             classes: ['item-type-button'],
             color: '#f39c12',

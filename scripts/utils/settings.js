@@ -2,11 +2,13 @@
  * Auto-populate Configuration Menu
  * FormApplication that directly opens the existing AutoPopulateConfigDialog
  */
+const MODULE_ID = 'bg3-hud-pf2e';
+
 class AutoPopulateConfigMenu extends FormApplication {
     static get defaultOptions() {
         return foundry.utils.mergeObject(super.defaultOptions, {
             id: 'bg3-hud-auto-populate-config',
-            title: 'Auto-populate Configuration',
+            title: game.i18n.localize(`${MODULE_ID}.Settings.AutoPopulateConfiguration`),
             width: 0,
             height: 0,
             closeOnSubmit: true
@@ -15,12 +17,11 @@ class AutoPopulateConfigMenu extends FormApplication {
 
     async _render(force = false, options = {}) {
         // Don't render anything - just open the dialog directly
-        const MODULE_ID = 'bg3-hud-pf2e';
         
         // Get the adapter's autoPopulate instance
         const adapter = ui.BG3HOTBAR?.registry?.activeAdapter;
         if (!adapter || !adapter.autoPopulate) {
-            ui.notifications.error('Auto-populate system not available');
+            ui.notifications.error(game.i18n.localize(`${MODULE_ID}.Notifications.AutoPopulateSystemNotAvailable`));
             this.close();
             return;
         }
@@ -31,7 +32,7 @@ class AutoPopulateConfigMenu extends FormApplication {
         // Get item type choices from the adapter
         const choices = await adapter.autoPopulate.getItemTypeChoices();
         if (!choices || choices.length === 0) {
-            ui.notifications.warn('No item types available for configuration');
+            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.NoItemTypesAvailable`));
             this.close();
             return;
         }
@@ -43,7 +44,7 @@ class AutoPopulateConfigMenu extends FormApplication {
         const { AutoPopulateConfigDialog } = await import('/modules/bg3-hud-core/scripts/components/ui/AutoPopulateConfigDialog.js');
         
         const dialog = new AutoPopulateConfigDialog({
-            title: 'Configure Auto-populate Grids',
+            title: game.i18n.localize(`${MODULE_ID}.Settings.ConfigureAutoPopulateGrids`),
             choices: choices,
             configuration: currentConfig
         });
@@ -53,7 +54,7 @@ class AutoPopulateConfigMenu extends FormApplication {
         // Save if not cancelled
         if (result) {
             await game.settings.set(MODULE_ID, 'autoPopulateConfiguration', result);
-            ui.notifications.info('Auto-populate configuration saved');
+            ui.notifications.info(game.i18n.localize(`${MODULE_ID}.Notifications.AutoPopulateConfigurationSaved`));
         }
     }
 }
@@ -62,13 +63,11 @@ class AutoPopulateConfigMenu extends FormApplication {
  * Register PF2e adapter module settings
  */
 export function registerSettings() {
-    const MODULE_ID = 'bg3-hud-pf2e';
-
     // Auto-populate configuration menu
     game.settings.registerMenu(MODULE_ID, 'autoPopulateConfigurationMenu', {
-        name: 'Configure Auto-populate Grids',
-        label: 'Configure Grids',
-        hint: 'Configure which item types to auto-populate in each grid when a token is created',
+        name: `${MODULE_ID}.Settings.ConfigureAutoPopulateGrids`,
+        label: `${MODULE_ID}.Settings.ConfigureGrids`,
+        hint: `${MODULE_ID}.Settings.ConfigureGridsHint`,
         icon: 'fas fa-grid-2',
         type: AutoPopulateConfigMenu,
         restricted: true
@@ -76,8 +75,8 @@ export function registerSettings() {
 
     // Auto-populate passives setting
     game.settings.register(MODULE_ID, 'autoPopulatePassivesEnabled', {
-        name: 'Auto-populate Passives',
-        hint: 'Automatically populate passives container with feats that have no action cost when a token is created',
+        name: `${MODULE_ID}.Settings.AutoPopulatePassives`,
+        hint: `${MODULE_ID}.Settings.AutoPopulatePassivesHint`,
         scope: 'world',
         config: true,
         type: Boolean,
@@ -86,8 +85,8 @@ export function registerSettings() {
 
     // Display item names setting
     game.settings.register(MODULE_ID, 'showItemNames', {
-        name: 'Show Item Names',
-        hint: 'Display item names on hotbar cells',
+        name: `${MODULE_ID}.Settings.ShowItemNames`,
+        hint: `${MODULE_ID}.Settings.ShowItemNamesHint`,
         scope: 'client',
         config: true,
         type: Boolean,
@@ -96,8 +95,8 @@ export function registerSettings() {
 
     // Display item uses setting
     game.settings.register(MODULE_ID, 'showItemUses', {
-        name: 'Show Item Uses',
-        hint: 'Display remaining uses on items that have limited uses',
+        name: `${MODULE_ID}.Settings.ShowItemUses`,
+        hint: `${MODULE_ID}.Settings.ShowItemUsesHint`,
         scope: 'client',
         config: true,
         type: Boolean,
@@ -106,8 +105,8 @@ export function registerSettings() {
 
     // Auto-populate on token creation setting
     game.settings.register(MODULE_ID, 'autoPopulateEnabled', {
-        name: 'Auto-populate on Token Creation',
-        hint: 'Automatically populate hotbar grids with items when a token is created',
+        name: `${MODULE_ID}.Settings.AutoPopulateOnTokenCreation`,
+        hint: `${MODULE_ID}.Settings.AutoPopulateOnTokenCreationHint`,
         scope: 'world',
         config: true,
         type: Boolean,
@@ -116,14 +115,14 @@ export function registerSettings() {
 
     // Auto-populate configuration setting
     game.settings.register(MODULE_ID, 'autoPopulateConfiguration', {
-        name: 'Auto-populate Configuration',
-        hint: 'Configure which item types to auto-populate in each grid (restricted to GM)',
+        name: `${MODULE_ID}.Settings.AutoPopulateConfiguration`,
+        hint: `${MODULE_ID}.Settings.AutoPopulateConfigurationHint`,
         restricted: true,
         scope: 'world',
         config: false,
         type: Object,
         default: {
-            grid0: ['weapon', 'action'],  // Main combat: weapons and actions
+            grid0: ['weapon', 'attack', 'action'],  // Main combat: weapons, attacks, and actions
             grid1: ['feat', 'spell'],     // Abilities: feats and spells
             grid2: ['consumable']         // Consumables: potions, elixirs, etc.
         }

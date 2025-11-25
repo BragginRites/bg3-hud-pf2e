@@ -77,7 +77,7 @@ export async function createPf2ePassivesContainer() {
 
             // Create and show dialog
             const dialog = new SelectionDialog({
-                title: 'Select Passive Feats',
+                title: game.i18n.localize('bg3-hud-pf2e.PF2E.SelectPassiveFeats'),
                 items: items,
                 onSave: async (selectedIds) => {
                     await this._saveSelectedPassives(selectedIds);
