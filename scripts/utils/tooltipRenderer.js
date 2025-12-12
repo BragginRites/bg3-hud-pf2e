@@ -45,7 +45,7 @@ export async function renderPf2eTooltip(data, options = {}) {
 
         return {
             content: html,
-            classes: ['pf2e-tooltip', 'item-tooltip'],
+            classes: ['pf2e', 'chat-card', 'pf2e-tooltip', 'item-tooltip'],
             direction: 'UP'
         };
     } catch (error) {
@@ -73,13 +73,27 @@ async function getItemCardData(item, options = {}) {
     // Get traits
     const traits = item.system?.traits?.value ?? [];
     
-    // Get description
-    const description = item.system?.description?.value || '';
-    const enrichedDescription = await foundry.applications.ux.TextEditor.implementation.enrichHTML(description, {
-        rollData: item.getRollData(),
-        relativeTo: item,
-        ...options
-    });
+    // Get description using PF2e chat data (matches item sheet behavior)
+    let enrichedDescription = '';
+    try {
+        const chatData = await item.getChatData({
+            secrets: game.user.isGM,
+            rollData: () => item.getRollData(),
+            relativeTo: item.actor ?? item
+        });
+        enrichedDescription = chatData?.description?.value ?? '';
+    } catch (err) {
+        console.warn('[bg3-hud-pf2e] getChatData failed, falling back to direct enrich', err);
+    }
+
+    if (!enrichedDescription) {
+        const description = item.system?.description?.value || '';
+        enrichedDescription = await game.pf2e.TextEditor.enrichHTML(description, {
+            rollData: () => item.getRollData(),
+            relativeTo: item.actor ?? item,
+            ...options
+        });
+    }
     
     // Build subtitle
     let subtitle = type.charAt(0).toUpperCase() + type.slice(1);

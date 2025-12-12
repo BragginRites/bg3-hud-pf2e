@@ -364,20 +364,27 @@ export async function createPf2ePortraitContainer() {
             img.src = imageSrc;
             img.alt = this.actor?.name || 'Portrait';
             
-            // Health overlay (red damage indicator)
-            const healthOverlay = this.createElement('div', ['health-overlay']);
-            const damageOverlay = this.createElement('div', ['damage-overlay']);
-            damageOverlay.style.setProperty('--damage-percent', health.damage);
-            healthOverlay.appendChild(damageOverlay);
+            // Health overlay (red damage indicator) - check setting
+            const showHealthOverlay = game.settings.get('bg3-hud-pf2e', 'showHealthOverlay') ?? true;
+            if (showHealthOverlay) {
+                const healthOverlay = this.createElement('div', ['health-overlay']);
+                const damageOverlay = this.createElement('div', ['damage-overlay']);
+                damageOverlay.style.setProperty('--damage-percent', health.damage);
+                healthOverlay.appendChild(damageOverlay);
 
-            // Apply alpha mask so overlays only affect non-transparent pixels of the image
-            portraitImageSubContainer.setAttribute('data-bend-mode', 'true');
-            portraitImageSubContainer.style.setProperty('--bend-img', `url("${img.src}")`);
-            this.element.classList.add('use-bend-mask');
+                // Apply alpha mask so overlays only affect non-transparent pixels of the image
+                portraitImageSubContainer.setAttribute('data-bend-mode', 'true');
+                portraitImageSubContainer.style.setProperty('--bend-img', `url("${img.src}")`);
+                this.element.classList.add('use-bend-mask');
+
+                portraitImageSubContainer.appendChild(healthOverlay);
+            }
 
             // Assemble portrait image structure
             portraitImageSubContainer.appendChild(img);
-            portraitImageSubContainer.appendChild(healthOverlay);
+            if (showHealthOverlay) {
+                portraitImageSubContainer.appendChild(healthOverlay);
+            }
             portraitImageContainer.appendChild(portraitImageSubContainer);
             this.element.appendChild(portraitImageContainer);
 
@@ -409,9 +416,34 @@ export async function createPf2ePortraitContainer() {
             const health = this.getHealth();
 
             // Update damage overlay height
+            const showHealthOverlay = game.settings.get('bg3-hud-pf2e', 'showHealthOverlay') ?? true;
             const damageOverlay = this.element.querySelector('.damage-overlay');
-            if (damageOverlay) {
+            if (damageOverlay && showHealthOverlay) {
                 damageOverlay.style.setProperty('--damage-percent', health.damage);
+            } else if (damageOverlay && !showHealthOverlay) {
+                // Remove overlay if setting is disabled
+                damageOverlay.remove();
+            } else if (!damageOverlay && showHealthOverlay) {
+                // Add overlay if setting is enabled and it doesn't exist
+                const portraitImageSubContainer = this.element.querySelector('.portrait-image-subcontainer');
+                if (portraitImageSubContainer) {
+                    const img = portraitImageSubContainer.querySelector('.portrait-image');
+                    if (img) {
+                        const healthOverlay = this.createElement('div', ['health-overlay']);
+                        const newDamageOverlay = this.createElement('div', ['damage-overlay']);
+                        newDamageOverlay.style.setProperty('--damage-percent', health.damage);
+                        healthOverlay.appendChild(newDamageOverlay);
+
+                        portraitImageSubContainer.appendChild(healthOverlay);
+
+                        // Apply alpha mask if not already applied
+                        if (!portraitImageSubContainer.hasAttribute('data-bend-mode')) {
+                            portraitImageSubContainer.setAttribute('data-bend-mode', 'true');
+                            portraitImageSubContainer.style.setProperty('--bend-img', `url("${img.src}")`);
+                            this.element.classList.add('use-bend-mask');
+                        }
+                    }
+                }
             }
 
             // Update health text component

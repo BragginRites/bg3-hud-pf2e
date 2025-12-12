@@ -24,7 +24,7 @@ export class Pf2eAutoSort extends AutoSortFramework {
                     item.sortData = {
                         name: itemData.name,
                         type: itemData.type,
-                        actionCost: itemData.system?.actions?.value ?? 0,
+                        actionCost: this._getActionCost(itemData),
                         spellLevel: itemData.type === 'spell' ? (itemData.system?.level?.value ?? 99) : 99,
                         featType: itemData.type === 'feat' ? (itemData.system?.category ?? '') : ''
                     };
@@ -59,7 +59,7 @@ export class Pf2eAutoSort extends AutoSortFramework {
      */
     async sortItems(items) {
         // Define PF2e item type order (first to last)
-        const typeOrder = ['weapon', 'action', 'feat', 'spell', 'consumable', 'equipment', 'armor', 'shield'];
+        const typeOrder = ['weapon', 'melee', 'action', 'feat', 'spell', 'consumable', 'ammo', 'equipment', 'armor', 'shield', 'backpack'];
         
         items.sort((a, b) => {
             // First, sort by item type according to our defined order
@@ -101,6 +101,31 @@ export class Pf2eAutoSort extends AutoSortFramework {
                     return (a.name || a.sortData?.name || '').localeCompare(b.name || b.sortData?.name || '');
             }
         });
+    }
+
+    /**
+     * Normalize action cost across PF2e items
+     * @param {Item} itemData - The item
+     * @returns {number}
+     * @private
+     */
+    _getActionCost(itemData) {
+        const rawCost = itemData.system?.actions?.value ?? itemData.system?.actionCost?.value ?? 0;
+        const parsedCost = Number(rawCost);
+
+        if (Number.isFinite(parsedCost) && parsedCost > 0) {
+            return parsedCost;
+        }
+
+        const actionType = itemData.system?.actionType?.value;
+        if (actionType === 'reaction') {
+            return 0.5;
+        }
+        if (actionType === 'free') {
+            return 0;
+        }
+
+        return 0;
     }
 }
 

@@ -3,6 +3,24 @@
  * Styles for PF2e-specific tooltip templates
  */
 
+/* Dark BG3-style variables for inline enrichers */
+.bg3-tooltip.pf2e,
+.bg3-tooltip.pf2e-tooltip {
+    --content-link-background: rgba(0, 0, 0, 0.2);
+    --content-link-border-color: rgba(255, 255, 255, 0.2);
+    --content-link-text-color: #f0f0f0;
+    --color-text-dark-inactive: #888;
+
+    /* Match dnd5e tooltip sizing */
+    max-width: min(640px, 95vw);
+}
+
+/* When pinned/locked, allow scrolling if content exceeds viewport */
+.bg3-tooltip.locked-tooltip.pf2e .pf2e-tooltip-content {
+    max-height: calc(100vh - 140px);
+    overflow: auto;
+}
+
 /* PF2e Tooltip Content Container */
 .bg3-tooltip .pf2e-tooltip-content {
     display: block;
@@ -152,9 +170,131 @@
     margin-bottom: 0;
 }
 
+/* 
+ * PF2E Inline Enrichers Styling
+ * These selectors target the PF2E system's enriched HTML elements that appear
+ * in item descriptions (actions, checks, DCs, etc.)
+ * 
+ * The PF2E system uses the @include inline-link mixin which applies:
+ * - background: var(--content-link-background)
+ * - border: 1px solid var(--content-link-border-color)
+ * - color: var(--content-link-text-color)
+ * 
+ * We override these with explicit styles to ensure visibility in our dark tooltip.
+ */
+
+/* Base styling for all inline enrichers */
+.bg3-tooltip.pf2e span[data-pf2-action],
+.bg3-tooltip.pf2e span[data-pf2-check],
+.bg3-tooltip.pf2e span[data-pf2-dc],
+.bg3-tooltip.pf2e span[data-pf2-effect-area],
+.bg3-tooltip.pf2e span[data-pf2-save],
+.bg3-tooltip.pf2e span[data-pf2-degree-of-success],
+.bg3-tooltip.pf2e a.inline-check,
+.bg3-tooltip.pf2e a.inline-roll,
+.bg3-tooltip.pf2e a.content-link,
+.bg3-tooltip.pf2e .with-repost,
+/* GM-only visibility notes inside inline enrichers */
+.bg3-tooltip.pf2e span[data-visibility] {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 1px 6px !important;
+    background: var(--content-link-background, rgba(0, 0, 0, 0.2)) !important;
+    border: 1px solid var(--content-link-border-color, rgba(255, 255, 255, 0.2)) !important;
+    color: var(--content-link-text-color, #f0f0f0) !important;
+    border-radius: 4px !important;
+    text-decoration: none !important;
+    line-height: 1.4 !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+}
+
+/* Icon styling within enrichers */
+.bg3-tooltip.pf2e span[data-pf2-action] i,
+.bg3-tooltip.pf2e span[data-pf2-check] i,
+.bg3-tooltip.pf2e span[data-pf2-dc] i,
+.bg3-tooltip.pf2e span[data-pf2-effect-area] i,
+.bg3-tooltip.pf2e span[data-pf2-save] i,
+.bg3-tooltip.pf2e span[data-pf2-degree-of-success] i,
+.bg3-tooltip.pf2e a.inline-check i,
+.bg3-tooltip.pf2e a.inline-roll i,
+.bg3-tooltip.pf2e a.content-link i,
+.bg3-tooltip.pf2e .with-repost i {
+    color: var(--color-text-dark-inactive, #888) !important;
+    font-size: 0.9em !important;
+}
+
+/* Text/label styling within enrichers */
+.bg3-tooltip.pf2e span[data-pf2-action] > span,
+.bg3-tooltip.pf2e span[data-pf2-check] > span,
+.bg3-tooltip.pf2e span[data-pf2-dc] > span,
+.bg3-tooltip.pf2e span[data-pf2-effect-area] > span,
+.bg3-tooltip.pf2e span[data-pf2-save] > span,
+.bg3-tooltip.pf2e span[data-pf2-degree-of-success] > span,
+.bg3-tooltip.pf2e a.inline-check .label,
+.bg3-tooltip.pf2e a.inline-roll .label,
+.bg3-tooltip.pf2e a.content-link span,
+.bg3-tooltip.pf2e .with-repost > span {
+    color: var(--content-link-text-color, #f0f0f0) !important;
+    font-weight: 500 !important;
+}
+
+/* GM-only visibility notes (e.g., "(DC 24)") inside inline enrichers */
+/* (covered above in the base selector list) */
+
+/* Action glyph (the PF2E action symbol font) */
+.bg3-tooltip.pf2e span[data-pf2-action][data-pf2-glyph]::before {
+    font-family: "Pathfinder2eActions", sans-serif !important;
+    margin-right: 4px !important;
+    color: var(--color-text-dark-inactive, #888) !important;
+}
+
+/* Repost button styling */
+.bg3-tooltip.pf2e i[data-pf2-repost],
+.bg3-tooltip.pf2e .fa-comment-alt {
+    color: var(--color-text-dark-inactive, #888) !important;
+    margin-left: 4px !important;
+    opacity: 0.8 !important;
+}
+
+/* Hover state for enrichers */
+.bg3-tooltip.pf2e span[data-pf2-action]:hover,
+.bg3-tooltip.pf2e span[data-pf2-check]:hover,
+.bg3-tooltip.pf2e span[data-pf2-dc]:hover,
+.bg3-tooltip.pf2e span[data-pf2-effect-area]:hover,
+.bg3-tooltip.pf2e span[data-pf2-save]:hover,
+.bg3-tooltip.pf2e span[data-pf2-degree-of-success]:hover,
+.bg3-tooltip.pf2e a.inline-check:hover,
+.bg3-tooltip.pf2e a.inline-roll:hover,
+.bg3-tooltip.pf2e a.content-link:hover,
+.bg3-tooltip.pf2e .with-repost:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
 /* Ensure content is visible */
 .bg3-tooltip.visible .pf2e-tooltip-content {
     display: block !important;
     visibility: visible !important;
+}
+
+/* Lists within descriptions */
+.bg3-tooltip .pf2e-tooltip-content .description ul,
+.bg3-tooltip .pf2e-tooltip-content .description ol {
+    margin: 0.5em 0;
+    padding-left: 1.5em;
+}
+
+.bg3-tooltip .pf2e-tooltip-content .description li {
+    margin: 0.25em 0;
+}
+
+/* Strong/bold text in descriptions */
+.bg3-tooltip .pf2e-tooltip-content .description strong {
+    color: var(--bg3-tooltip-text-color, #ddd);
+    font-weight: 600;
 }
 

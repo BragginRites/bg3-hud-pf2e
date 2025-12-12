@@ -1,6 +1,33 @@
 import { AutoPopulateFramework } from '/modules/bg3-hud-core/scripts/features/AutoPopulateFramework.js';
 
 const MODULE_ID = 'bg3-hud-pf2e';
+const PF2E_TEMPLATE_ITEM_TYPES = [
+    'action',
+    'ancestry',
+    'affliction',
+    'armor',
+    'background',
+    'backpack',
+    'book',
+    'campaignFeature',
+    'class',
+    'condition',
+    'consumable',
+    'ammo',
+    'deity',
+    'effect',
+    'equipment',
+    'feat',
+    'heritage',
+    'kit',
+    'lore',
+    'melee',
+    'shield',
+    'spell',
+    'spellcastingEntry',
+    'treasure',
+    'weapon'
+];
 
 /**
  * PF2e Auto Populate Implementation
@@ -12,38 +39,71 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
      * @returns {Promise<Array<{group: string, choices: Array<{value: string, label: string}>}>>}
      */
     async getItemTypeChoices() {
-        return [
-            {
+        const systemTypes = this._getSystemItemTypes();
+        const groups = [];
+
+        const combatChoices = [];
+        if (systemTypes.has('weapon')) {
+            combatChoices.push(this._buildChoice('weapon', 'Weapons'));
+        }
+        if (systemTypes.has('melee')) {
+            combatChoices.push(this._buildChoice('melee', 'Melee'));
+        }
+        if (systemTypes.has('action')) {
+            combatChoices.push(this._buildChoice('action', 'Actions'));
+        }
+        if (systemTypes.has('feat')) {
+            combatChoices.push(this._buildChoice('feat', 'Feats'));
+        }
+        if (systemTypes.has('spell')) {
+            combatChoices.push(this._buildChoice('spell', 'Spells'));
+            combatChoices.push(this._buildChoice('spell:focus', 'FocusSpells'));
+        }
+        if ((systemTypes.has('weapon') || systemTypes.has('melee')) && combatChoices.length > 0) {
+            combatChoices.unshift(this._buildChoice('attack', 'Attacks'));
+        }
+        if (combatChoices.length > 0) {
+            groups.push({
                 group: game.i18n.localize(`${MODULE_ID}.AutoPopulate.Groups.Combat`),
-                choices: [
-                    { value: 'weapon', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Weapons`) },
-                    { value: 'attack', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Attacks`) },
-                    { value: 'action', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Actions`) },
-                    { value: 'feat', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Feats`) },
-                    { value: 'spell', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Spells`) }
-                ]
-            },
-            {
+                choices: combatChoices
+            });
+        }
+
+        const consumableChoices = [];
+        if (systemTypes.has('consumable')) {
+            consumableChoices.push(this._buildChoice('consumable', 'Consumables'));
+        }
+        if (systemTypes.has('ammo')) {
+            consumableChoices.push(this._buildChoice('ammo', 'Ammunition'));
+        }
+        if (consumableChoices.length > 0) {
+            groups.push({
                 group: game.i18n.localize(`${MODULE_ID}.AutoPopulate.Groups.Consumables`),
-                choices: [
-                    { value: 'consumable', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Consumables`) }
-                ]
-            },
-            {
+                choices: consumableChoices
+            });
+        }
+
+        const equipmentChoices = [];
+        if (systemTypes.has('equipment')) {
+            equipmentChoices.push(this._buildChoice('equipment', 'Equipment'));
+        }
+        if (systemTypes.has('armor')) {
+            equipmentChoices.push(this._buildChoice('armor', 'Armor'));
+        }
+        if (systemTypes.has('shield')) {
+            equipmentChoices.push(this._buildChoice('shield', 'Shields'));
+        }
+        if (systemTypes.has('backpack')) {
+            equipmentChoices.push(this._buildChoice('backpack', 'Backpacks'));
+        }
+        if (equipmentChoices.length > 0) {
+            groups.push({
                 group: game.i18n.localize(`${MODULE_ID}.AutoPopulate.Groups.Equipment`),
-                choices: [
-                    { value: 'equipment', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Equipment`) },
-                    { value: 'armor', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Armor`) },
-                    { value: 'shield', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.Shields`) }
-                ]
-            },
-            {
-                group: game.i18n.localize(`${MODULE_ID}.AutoPopulate.Groups.Spellcasting`),
-                choices: [
-                    { value: 'spell:focus', label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.FocusSpells`) }
-                ]
-            }
-        ];
+                choices: equipmentChoices
+            });
+        }
+
+        return groups;
     }
 
     /**
@@ -57,21 +117,16 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
         const items = [];
 
         for (const item of actor.items) {
-            // Check if item matches any selected type
             if (!this._matchesType(item, selectedTypes)) {
                 continue;
             }
 
-            // For spells, check if they're prepared/available
             if (item.type === 'spell' && !this._isSpellUsable(actor, item)) {
                 continue;
             }
 
-            // Check if this is an attack (melee/ranged item with action: strike)
-            const isAttack = (item.type === 'melee' || item.type === 'ranged') && item.system?.action === 'strike';
-            
-            // For actions/feats, check if they have action cost (exclude passives)
-            // Attacks are always included regardless of action cost
+            const isAttack = item.type === 'melee' || item.type === 'weapon';
+
             if (!isAttack && (item.type === 'action' || item.type === 'feat') && !this._hasActions(item)) {
                 continue;
             }
@@ -90,26 +145,26 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
      * @private
      */
     _matchesType(item, selectedTypes) {
+        const itemType = item.type;
         for (const selectedType of selectedTypes) {
             if (selectedType.includes(':')) {
-                // Handle subtype (e.g., "spell:focus")
                 const [mainType, subType] = selectedType.split(':');
 
-                if (item.type !== mainType) continue;
+                if (itemType !== mainType) continue;
 
-                // Check for focus spell trait
                 if (subType === 'focus') {
                     const traits = item.system?.traits?.value ?? [];
                     return traits.includes('focus');
                 }
             } else {
-                // Handle special type: "attack" (melee/ranged items with action: strike)
                 if (selectedType === 'attack') {
-                    return (item.type === 'melee' || item.type === 'ranged') && item.system?.action === 'strike';
+                    if (itemType === 'weapon' || itemType === 'melee') {
+                        return true;
+                    }
+                    continue;
                 }
-                
-                // Handle main type (e.g., "weapon", "feat", "spell")
-                if (item.type === selectedType) return true;
+
+                if (itemType === selectedType) return true;
             }
         }
         return false;
@@ -123,20 +178,65 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
      * @private
      */
     _isSpellUsable(actor, item) {
-        // PF2e spells are usable if they're in a spellcasting entry
-        // For now, include all spells - the system handles preparation
         return true;
     }
 
     /**
-     * Check if item has actions (action cost > 0)
+     * Check if item has actions (action cost or reaction/free action types)
      * @param {Item} item - The item to check
      * @returns {boolean}
      * @private
      */
     _hasActions(item) {
-        const actionCost = item.system?.actions?.value ?? 0;
+        const actionType = item.system?.actionType?.value;
+        if (actionType === 'reaction' || actionType === 'free') {
+            return true;
+        }
+
+        const actionCost = this._getActionCost(item);
         return actionCost > 0;
+    }
+
+    /**
+     * Get action cost from PF2e item schema
+     * @param {Item} item - The item
+     * @returns {number}
+     * @private
+     */
+    _getActionCost(item) {
+        const rawCost = item.system?.actions?.value ?? item.system?.actionCost?.value ?? 0;
+        const parsedCost = Number(rawCost);
+        if (Number.isFinite(parsedCost)) {
+            return parsedCost;
+        }
+        return 0;
+    }
+
+    /**
+     * Get available PF2e item types from system config
+     * @returns {Set<string>}
+     * @private
+     */
+    _getSystemItemTypes() {
+        const configTypes = CONFIG?.PF2E?.Item?.documentClasses;
+        if (configTypes) {
+            return new Set(Object.keys(configTypes));
+        }
+        return new Set(PF2E_TEMPLATE_ITEM_TYPES);
+    }
+
+    /**
+     * Build a localized choice entry
+     * @param {string} value
+     * @param {string} labelKey
+     * @returns {{value: string, label: string}}
+     * @private
+     */
+    _buildChoice(value, labelKey) {
+        return {
+            value,
+            label: game.i18n.localize(`${MODULE_ID}.AutoPopulate.ItemTypes.${labelKey}`)
+        };
     }
 }
 

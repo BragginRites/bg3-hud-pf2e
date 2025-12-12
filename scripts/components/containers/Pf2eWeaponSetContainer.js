@@ -152,6 +152,117 @@ export async function createPf2eWeaponSetContainer() {
                 await this._updateSetTwoHandedWeapons(gridContainer);
             }
         }
+
+        /**
+         * Equip target set and unequip previously active set
+         * @param {number} setIndex
+         * @param {GridContainer} setContainer
+         */
+        async onSetSwitch(setIndex, setContainer) {
+            const actor = this.actor;
+            if (!actor) return;
+
+            const currentActiveIndex = this.getActiveSet();
+            const currentGrid = this.gridContainers[currentActiveIndex];
+
+            const resolveSetItems = async (grid) => {
+                if (!grid?.items) return [];
+                const items = [];
+                for (const slotKey of Object.keys(grid.items)) {
+                    const cellData = grid.items[slotKey];
+                    if (!cellData?.uuid || cellData.isTwoHandedDuplicate) continue;
+                    try {
+                        const item = await fromUuid(cellData.uuid);
+                        if (!item || item.actor?.id !== actor.id) continue;
+                        if (!this._isManagedEquipment(item)) continue;
+                        items.push(item);
+                    } catch (error) {
+                        console.warn('BG3 HUD PF2e | Failed to resolve item for weapon set slot', slotKey, error);
+                    }
+                }
+                return items;
+            };
+
+            const [itemsToUnequip, itemsToEquip] = await Promise.all([
+                resolveSetItems(currentGrid),
+                resolveSetItems(setContainer),
+            ]);
+
+            const desiredStates = new Map();
+            for (const item of itemsToUnequip) {
+                desiredStates.set(item.id, {
+                    item,
+                    carryType: 'worn',
+                    handsHeld: 0,
+                    inSlot: false,
+                });
+            }
+            for (const item of itemsToEquip) {
+                desiredStates.set(item.id, {
+                    item,
+                    carryType: 'held',
+                    handsHeld: this._getHandsHeld(item),
+                    inSlot: true,
+                });
+            }
+
+            const updates = [];
+            for (const { item, carryType, handsHeld, inSlot } of desiredStates.values()) {
+                const equipped = item.system?.equipped || {};
+                const needsUpdate =
+                    equipped.carryType !== carryType ||
+                    equipped.handsHeld !== handsHeld ||
+                    equipped.inSlot !== inSlot;
+
+                if (needsUpdate) {
+                    updates.push({
+                        _id: item.id,
+                        'system.equipped.carryType': carryType,
+                        'system.equipped.handsHeld': handsHeld,
+                        'system.equipped.inSlot': inSlot,
+                    });
+                }
+            }
+
+            if (updates.length) {
+                await actor.updateEmbeddedDocuments('Item', updates);
+            }
+        }
+
+        /**
+         * Determine if an item should be managed by weapon sets
+         * @param {Item} item
+         * @returns {boolean}
+         * @private
+         */
+        _isManagedEquipment(item) {
+            if (!item) return false;
+            if (item.type === 'weapon' || item.type === 'shield') return true;
+            if (item.type === 'equipment') {
+                const usage = item.system?.usage?.value || '';
+                if (typeof usage === 'string' && usage.includes('hand')) return true;
+                const traits = item.system?.traits?.value || [];
+                return Array.isArray(traits) && traits.includes('implement');
+            }
+            return false;
+        }
+
+        /**
+         * Determine hands required for the item
+         * @param {Item} item
+         * @returns {number}
+         * @private
+         */
+        _getHandsHeld(item) {
+            if (!item) return 0;
+            if (item.type === 'weapon') {
+                const traits = item.system?.traits?.value || [];
+                if (Array.isArray(traits) && traits.includes('two-hand')) {
+                    return 2;
+                }
+            }
+            return 1;
+        }
     };
 }
 

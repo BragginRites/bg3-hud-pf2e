@@ -33,8 +33,8 @@ export class Pf2eActionButtonsContainer extends ActionButtonsContainer {
         buttons.push({
             key: 'end-turn',
             classes: ['end-turn-button'],
-            icon: 'fas fa-clock-rotate-left',
-            label: game.i18n.localize('BG3HUD.EndTurn'),
+            icon: 'fas fa-stopwatch',
+            label: '', // icon-only
             tooltip: game.i18n.localize('BG3HUD.EndTurn'),
             tooltipDirection: 'LEFT',
             visible: () => {
@@ -46,27 +46,6 @@ export class Pf2eActionButtonsContainer extends ActionButtonsContainer {
                     await game.combat.nextTurn();
                 }
             }
-        });
-
-        // Action Counter Display (shows remaining actions during combat)
-        buttons.push({
-            key: 'action-counter',
-            classes: ['action-counter-button'],
-            icon: 'fas fa-hand-fist',
-            label: () => {
-                const actionsRemaining = this.actor.system.actionsRemaining?.value ?? 3;
-                return `${actionsRemaining}/3`;
-            },
-            tooltip: () => {
-                const actionsRemaining = this.actor.system.actionsRemaining?.value ?? 3;
-                return game.i18n.format('bg3-hud-pf2e.PF2E.ActionsRemaining', actionsRemaining);
-            },
-            tooltipDirection: 'LEFT',
-            visible: () => {
-                return !!game.combat?.started && 
-                       game.combat?.combatant?.actor?.id === this.actor.id;
-            },
-            onClick: null // Display only, not clickable
         });
 
         // Rest button (visible outside combat)

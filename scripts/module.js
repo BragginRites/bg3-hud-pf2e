@@ -145,6 +145,56 @@ class Pf2eAdapter {
         if (!data) return [];
 
         const items = [];
+        if (!data.uuid) return items;
+
+        const item = await fromUuid(data.uuid);
+        const actor = item?.actor;
+
+        // Shield-specific interactions
+        if (item?.type === 'shield' && actor) {
+            const attrShield = actor.attributes?.shield;
+            const isThisShieldRaised = !!(attrShield?.itemId === item.id && attrShield?.raised);
+            const coverUuid = 'Compendium.pf2e.other-effects.Item.I9lfZUiCwMiGogVi';
+            const hasShieldCover = actor.itemTypes?.effect?.some(
+                (e) => e.sourceId === coverUuid && e.getFlag?.(MODULE_ID, 'shieldCover'),
+            );
+
+            items.push({
+                label: game.i18n.localize(
+                    isThisShieldRaised ? `${MODULE_ID}.Context.LowerShield` : `${MODULE_ID}.Context.RaiseShield`,
+                ),
+                icon: 'fas fa-shield',
+                onClick: async () => {
+                    if (isThisShieldRaised) {
+                        await this._lowerShield(actor);
+                    } else {
+                        await this._raiseShield(actor);
+                    }
+                }
+            });
+
+            items.push({
+                label: game.i18n.localize(
+                    hasShieldCover ? `${MODULE_ID}.Context.RemoveCover` : `${MODULE_ID}.Context.TakeCover`,
+                ),
+                icon: 'fas fa-person-shelter',
+                onClick: async () => {
+                    await this._takeCover(actor, item);
+                }
+            });
+        }
+
+        // Weapon interactions: toggle one-hand / two-hand grip
+        if (item?.type === 'weapon' && actor && this._canToggleGrip(item)) {
+            const nextHands = this._getNextHands(item);
+            items.push({
+                label: game.i18n.format(`${MODULE_ID}.Context.ToggleGrip`, { hands: nextHands }),
+                icon: 'fas fa-hand',
+                onClick: async () => {
+                    await this._toggleGrip(item, nextHands);
+                }
+            });
+        }
 
         // PF2e doesn't add extra context menu items by default
         // The core context menu already provides "Edit Item" which opens the sheet
@@ -167,13 +217,45 @@ class Pf2eAdapter {
 
         console.log('PF2e Adapter | Using item:', item.name);
 
-        // PF2e items use .roll() or .toMessage() methods
-        if (typeof item.roll === 'function') {
-            await item.roll({ event });
-        } else if (typeof item.toMessage === 'function') {
-            await item.toMessage();
-        } else {
+        try {
+            // Special-case Take Cover action items to avoid dialogs; use shield-derived cover
+            const slug = item.system?.slug || item.slug || item.name?.toLowerCase();
+            if (item.type === 'action' && slug === 'take-cover') {
+                const applied = await this._applyCoverEffect(item.actor);
+                if (!applied) {
+                    ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ActionUnavailable`));
+                }
+                return;
+            }
+
+            // For weapons/melee strikes, open the PF2E strike popout (MAP options, damage, crit)
+            if (item.actor && (item.type === 'weapon' || item.type === 'melee')) {
+                const strike = item.actor.system?.actions?.find?.((s) => s.item?.id === item.id);
+                if (strike && game.pf2e?.rollActionMacro) {
+                    await game.pf2e.rollActionMacro({
+                        actorUUID: item.actor.uuid,
+                        itemId: item.id,
+                        slug: strike.slug,
+                        type: 'strike',
+                    });
+                    return;
+                }
+            }
+
+            if (typeof item.toMessage === 'function') {
+                await item.toMessage(event, { create: true });
+                return;
+            }
+
+            if (typeof item.roll === 'function') {
+                await item.roll({ event });
+                return;
+            }
+
             ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ItemCannotBeUsed`));
+        } catch (error) {
+            console.error('[bg3-hud-pf2e] Failed to use item', { uuid: item.uuid, name: item.name }, error);
+            ui.notifications.error(game.i18n.localize(`${MODULE_ID}.Notifications.ItemCannotBeUsed`));
         }
     }
 
@@ -309,6 +391,161 @@ class Pf2eAdapter {
         }
 
         return cellData;
+    }
+
+    /**
+     * Raise Shield via PF2e action macro
+     * @param {Actor} actor
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _raiseShield(actor) {
+        const raiseAction = game.pf2e?.actions?.raiseAShield;
+        if (!raiseAction) {
+            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ActionUnavailable`));
+            return;
+        }
+        await raiseAction({ actors: [actor] });
+    }
+
+    /**
+     * Lower Shield by removing the Raise a Shield effect
+     * @param {Actor} actor
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _lowerShield(actor) {
+        const raiseEffect = actor.itemTypes?.effect?.find(
+            (e) =>
+                e.slug === 'raise-a-shield' ||
+                e.slug === 'effect-raise-a-shield' ||
+                e.sourceId === 'Compendium.pf2e.equipment-effects.Item.2YgXoHvJfrDHucMr',
+        );
+        if (!raiseEffect) return;
+        try {
+            await raiseEffect.delete();
+        } catch (error) {
+            console.error(`[${MODULE_ID}] Failed to lower shield`, { actorId: actor.id }, error);
+            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ActionFailed`));
+        }
+    }
+
+    /**
+     * Take Cover via PF2e action macro
+     * @param {Actor} actor
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _takeCover(actor, shieldOverride = null) {
+        const applied = await this._applyCoverEffect(actor, shieldOverride);
+        if (!applied) {
+            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ActionUnavailable`));
+        }
+    }
+
+    /**
+     * Apply cover effect based on held shield (tower = greater, otherwise standard)
+     * @param {Actor} actor
+     * @param {Item} shieldOverride
+     * @returns {Promise<boolean>} true if applied
+     * @private
+     */
+    async _applyCoverEffect(actor, shieldOverride = null) {
+        if (!actor) return false;
+
+        const shield = shieldOverride ?? actor.heldShield ?? null;
+        const baseItem = shield?.system?.baseItem ?? '';
+        const hasTowerTrait = !!shield?.system?.traits?.value?.some?.((t) => t === 'tower' || t === 'tower-shield');
+        const isTowerShield = hasTowerTrait || ['tower-shield', 'fortress-shield'].includes(baseItem);
+        const coverSelection = isTowerShield ? { bonus: 4, level: 'greater' } : { bonus: 2, level: 'standard' };
+
+        const coverUuid = 'Compendium.pf2e.other-effects.Item.I9lfZUiCwMiGogVi';
+        const existing = actor.itemTypes?.effect?.find(
+            (e) => e.sourceId === coverUuid && e.getFlag?.(MODULE_ID, 'shieldCover'),
+        );
+        if (existing) {
+            await existing.delete();
+            return true;
+        }
+
+        try {
+            const effect = await fromUuid(coverUuid);
+            if (!effect) return false;
+
+            const data = { ...effect.toObject(), _id: null };
+
+            // Pre-select the cover level to avoid prompting the user
+            const rule = Array.isArray(data.system?.rules)
+                ? data.system.rules.find((r) => r?.key === 'ChoiceSet')
+                : null;
+            if (rule) {
+                rule.selection = coverSelection;
+            }
+
+            // Tag tower shields for parity with system behavior
+            if (isTowerShield && data.system?.traits) {
+                const otherTags = Array.isArray(data.system.traits.otherTags) ? data.system.traits.otherTags : [];
+                data.system.traits.otherTags = Array.from(new Set([...otherTags, 'tower-shield']));
+            }
+
+            data.flags = data.flags ?? {};
+            data.flags[MODULE_ID] = {
+                ...(data.flags[MODULE_ID] ?? {}),
+                shieldCover: true,
+            };
+
+            await actor.createEmbeddedDocuments('Item', [data]);
+            return true;
+        } catch (error) {
+            console.warn(`[${MODULE_ID}] Failed to apply cover effect`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Can this weapon switch between 1H and 2H?
+     * @param {Item} item
+     * @returns {boolean}
+     * @private
+     */
+    _canToggleGrip(item) {
+        if (!item || item.type !== 'weapon') return false;
+        const traits = item.system?.traits?.value || [];
+        const hasTwoHandVariant = traits.some((trait) => typeof trait === 'string' && trait.startsWith('two-hand'));
+        const hasVersatile = traits.some((trait) => typeof trait === 'string' && trait.startsWith('versatile'));
+        return hasTwoHandVariant || hasVersatile;
+    }
+
+    /**
+     * Determine the next hands-held state for a weapon (flip 1 <-> 2)
+     * @param {Item} item
+     * @returns {number}
+     * @private
+     */
+    _getNextHands(item) {
+        const current = Number(item.system?.equipped?.handsHeld) || 1;
+        return current === 2 ? 1 : 2;
+    }
+
+    /**
+     * Toggle weapon grip between one-hand and two-hand
+     * @param {Item} item
+     * @param {number} hands
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _toggleGrip(item, hands) {
+        if (!item?.actor) return;
+        try {
+            await item.update({
+                'system.equipped.carryType': 'held',
+                'system.equipped.handsHeld': hands,
+                'system.equipped.inSlot': true
+            });
+        } catch (error) {
+            console.error(`[${MODULE_ID}] Failed to toggle grip`, { itemId: item.id, hands }, error);
+            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ActionFailed`));
+        }
     }
 }
 

@@ -32,9 +32,25 @@
             "ShowItemNamesHint": "Display item names on hotbar cells",
             "ShowItemUses": "Show Item Uses",
             "ShowItemUsesHint": "Display remaining uses on items that have limited uses",
+            "ShowHealthOverlay": "Show Health Overlay",
+            "ShowHealthOverlayHint": "Display red damage overlay on portrait images",
             "AutoPopulateOnTokenCreation": "Auto-populate on Token Creation",
             "AutoPopulateOnTokenCreationHint": "Automatically populate hotbar grids with items when a token is created",
-            "AutoPopulateConfigurationHint": "Configure which item types to auto-populate in each grid (restricted to GM)"
+            "AutoPopulateConfigurationHint": "Configure which item types to auto-populate in each grid (restricted to GM)",
+            "Display": {
+                "MenuTitle": "Display Settings",
+                "MenuName": "Display Settings",
+                "MenuLabel": "Display Settings",
+                "MenuHint": "Toggle item names and uses on hotbar cells",
+                "Legend": "Display"
+            },
+            "AutoPopulate": {
+                "MenuTitle": "Auto-Populate Settings",
+                "MenuName": "Auto-Populate Settings",
+                "MenuLabel": "Auto-Populate Settings",
+                "MenuHint": "Control automatic population of grids and passives",
+                "Legend": "Auto-Populate"
+            }
         },
         "AutoPopulate": {
             "Groups": {
@@ -45,12 +61,15 @@
             },
             "ItemTypes": {
                 "Weapons": "Weapons",
+                "Melee": "Melee Strikes",
                 "Attacks": "Attacks",
                 "Actions": "Actions",
                 "Feats": "Feats",
                 "Spells": "Spells",
                 "Consumables": "Consumables",
+                "Ammunition": "Ammunition",
                 "Equipment": "Equipment",
+                "Backpacks": "Backpacks",
                 "Armor": "Armor",
                 "Shields": "Shields",
                 "FocusSpells": "Focus Spells"
@@ -106,6 +125,13 @@
                 "Will": "Will"
             }
         },
+        "Context": {
+            "RaiseShield": "Raise Shield",
+            "LowerShield": "Lower Shield",
+            "TakeCover": "Take Cover",
+            "RemoveCover": "Remove Cover",
+            "ToggleGrip": "Switch to {hands}-Handed"
+        },
         "Menu": {
             "UseTokenImage": "Use Token Image",
             "UseCharacterPortrait": "Use Character Portrait"
@@ -119,7 +145,9 @@
             "MacroNotFound": "Macro not found",
             "FailedToPerformRest": "Failed to perform rest",
             "FailedToRollInitiative": "Failed to roll initiative",
-            "SlotOccupiedByTwoHandedWeapon": "This slot is occupied by a two-handed weapon"
+            "SlotOccupiedByTwoHandedWeapon": "This slot is occupied by a two-handed weapon",
+            "ActionUnavailable": "This action is unavailable right now",
+            "ActionFailed": "Could not complete that action"
         }
     }
 }
