@@ -54,52 +54,8 @@ class AutoPopulateConfigMenu extends foundry.applications.api.ApplicationV2 {
  * Register PF2e adapter module settings
  */
 export function registerSettings() {
-    const DisplaySettingsMenu = createSettingsSubmenu({
-        moduleId: MODULE_ID,
-        titleKey: `${MODULE_ID}.Settings.Display.MenuTitle`,
-        sections: [
-            { legend: `${MODULE_ID}.Settings.Display.Legend`, keys: ['showItemNames', 'showItemUses', 'showHealthOverlay'] }
-        ]
-    });
-
-    const AutoPopulateSettingsMenu = createSettingsSubmenu({
-        moduleId: MODULE_ID,
-        titleKey: `${MODULE_ID}.Settings.AutoPopulate.MenuTitle`,
-        sections: [
-            { legend: `${MODULE_ID}.Settings.AutoPopulate.Legend`, keys: ['autoPopulateEnabled', 'autoPopulatePassivesEnabled'] }
-        ]
-    });
-
-    // Auto-populate configuration menu
-    game.settings.registerMenu(MODULE_ID, 'autoPopulateConfigurationMenu', {
-        name: `${MODULE_ID}.Settings.ConfigureAutoPopulateGrids`,
-        label: `${MODULE_ID}.Settings.ConfigureGrids`,
-        hint: `${MODULE_ID}.Settings.ConfigureGridsHint`,
-        icon: 'fas fa-grid-2',
-        type: AutoPopulateConfigMenu,
-        restricted: true,
-    });
-
-    // Display submenu
-    game.settings.registerMenu(MODULE_ID, 'displaySettingsMenu', {
-        name: `${MODULE_ID}.Settings.Display.MenuName`,
-        label: `${MODULE_ID}.Settings.Display.MenuLabel`,
-        hint: `${MODULE_ID}.Settings.Display.MenuHint`,
-        icon: 'fas fa-list',
-        type: DisplaySettingsMenu,
-        restricted: true
-    });
-
-    // Auto-populate submenu
-    game.settings.registerMenu(MODULE_ID, 'autoPopulateSettingsMenu', {
-        name: `${MODULE_ID}.Settings.AutoPopulate.MenuName`,
-        label: `${MODULE_ID}.Settings.AutoPopulate.MenuLabel`,
-        hint: `${MODULE_ID}.Settings.AutoPopulate.MenuHint`,
-        icon: 'fas fa-list',
-        type: AutoPopulateSettingsMenu,
-        restricted: true
-    });
-
+    // Register all actual settings first, before creating submenu classes
+    
     // Auto-populate passives setting
     game.settings.register(MODULE_ID, 'autoPopulatePassivesEnabled', {
         name: `${MODULE_ID}.Settings.AutoPopulatePassives`,
@@ -163,6 +119,53 @@ export function registerSettings() {
             grid1: ['feat', 'spell'],     // Abilities: feats and spells
             grid2: ['consumable', 'ammo'] // Consumables and ammunition
         }
+    });
+
+    // Now create submenu classes that reference the registered settings
+    const DisplaySettingsMenu = createSettingsSubmenu({
+        moduleId: MODULE_ID,
+        titleKey: `${MODULE_ID}.Settings.Display.MenuTitle`,
+        sections: [
+            { legend: `${MODULE_ID}.Settings.Display.Legend`, keys: ['showItemNames', 'showItemUses', 'showHealthOverlay'] }
+        ]
+    });
+
+    const AutoPopulateSettingsMenu = createSettingsSubmenu({
+        moduleId: MODULE_ID,
+        titleKey: `${MODULE_ID}.Settings.AutoPopulate.MenuTitle`,
+        sections: [
+            { legend: `${MODULE_ID}.Settings.AutoPopulate.Legend`, keys: ['autoPopulateEnabled', 'autoPopulatePassivesEnabled'] }
+        ]
+    });
+
+    // Auto-populate configuration menu
+    game.settings.registerMenu(MODULE_ID, 'autoPopulateConfigurationMenu', {
+        name: `${MODULE_ID}.Settings.ConfigureAutoPopulateGrids`,
+        label: `${MODULE_ID}.Settings.ConfigureGrids`,
+        hint: `${MODULE_ID}.Settings.ConfigureGridsHint`,
+        icon: 'fas fa-grid-2',
+        type: AutoPopulateConfigMenu,
+        restricted: true,
+    });
+
+    // Display submenu
+    game.settings.registerMenu(MODULE_ID, 'displaySettingsMenu', {
+        name: `${MODULE_ID}.Settings.Display.MenuName`,
+        label: `${MODULE_ID}.Settings.Display.MenuLabel`,
+        hint: `${MODULE_ID}.Settings.Display.MenuHint`,
+        icon: 'fas fa-list',
+        type: DisplaySettingsMenu,
+        restricted: true
+    });
+
+    // Auto-populate submenu
+    game.settings.registerMenu(MODULE_ID, 'autoPopulateSettingsMenu', {
+        name: `${MODULE_ID}.Settings.AutoPopulate.MenuName`,
+        label: `${MODULE_ID}.Settings.AutoPopulate.MenuLabel`,
+        hint: `${MODULE_ID}.Settings.AutoPopulate.MenuHint`,
+        icon: 'fas fa-list',
+        type: AutoPopulateSettingsMenu,
+        restricted: true
     });
 }
 

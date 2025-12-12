@@ -382,9 +382,6 @@ export async function createPf2ePortraitContainer() {
 
             // Assemble portrait image structure
             portraitImageSubContainer.appendChild(img);
-            if (showHealthOverlay) {
-                portraitImageSubContainer.appendChild(healthOverlay);
-            }
             portraitImageContainer.appendChild(portraitImageSubContainer);
             this.element.appendChild(portraitImageContainer);
 
