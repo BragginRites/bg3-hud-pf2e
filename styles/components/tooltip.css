@@ -80,7 +80,7 @@
 /* Subtitle */
 .bg3-tooltip .pf2e-tooltip-content .header .top .name .subtitle {
     font-size: 11px;
-    color: var(--bg3-tooltip-text-secondary, #999);
+    color: var(--bg3-tooltip-text-secondary-color, #999);
     margin: 0;
     margin-top: 2px;
     line-height: 1.2;
@@ -102,7 +102,7 @@
     background: rgba(255, 255, 255, 0.1);
     border-radius: 4px;
     font-size: 11px;
-    color: var(--bg3-tooltip-text-secondary, #999);
+    color: var(--bg3-tooltip-text-secondary-color, #999);
     white-space: nowrap;
 }
 
@@ -116,7 +116,7 @@
 /* Trait Tag */
 .bg3-tooltip .pf2e-tooltip-content .tooltip-tag.trait {
     background: rgba(255, 255, 255, 0.1);
-    color: var(--bg3-tooltip-text-secondary, #999);
+    color: var(--bg3-tooltip-text-secondary-color, #999);
     text-transform: capitalize;
 }
 
@@ -141,14 +141,14 @@
 /* Spell School */
 .bg3-tooltip .pf2e-tooltip-content .tooltip-spell-info .spell-school {
     font-size: 11px;
-    color: var(--bg3-tooltip-text-secondary, #999);
+    color: var(--bg3-tooltip-text-secondary-color, #999);
     text-transform: capitalize;
 }
 
 /* Spell Traditions */
 .bg3-tooltip .pf2e-tooltip-content .tooltip-spell-info .spell-traditions {
     font-size: 11px;
-    color: var(--bg3-tooltip-text-secondary, #999);
+    color: var(--bg3-tooltip-text-secondary-color, #999);
 }
 
 /* Description Section */
@@ -297,4 +297,3 @@
     color: var(--bg3-tooltip-text-color, #ddd);
     font-weight: 600;
 }
-
