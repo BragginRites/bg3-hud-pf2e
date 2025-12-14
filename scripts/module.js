@@ -32,7 +32,7 @@ Hooks.once('init', () => {
  */
 Hooks.on('bg3HudReady', async (BG3HUD_API) => {
     console.log('BG3 HUD PF2e | Received bg3HudReady hook');
-    
+
     // Verify we're in PF2e system
     if (game.system.id !== 'pf2e') {
         console.warn('BG3 HUD PF2e | Not running PF2e system, skipping registration');
@@ -43,28 +43,28 @@ Hooks.on('bg3HudReady', async (BG3HUD_API) => {
 
     // Create the portrait container class (extends core's PortraitContainer)
     const Pf2ePortraitContainer = await createPf2ePortraitContainer();
-    
+
     // Create the passives container class (extends core's PassivesContainer)
     const Pf2ePassivesContainer = await createPf2ePassivesContainer();
-    
+
     // Create the weapon set container class (extends core's WeaponSetContainer)
     const Pf2eWeaponSetContainer = await createPf2eWeaponSetContainer();
-    
+
     // Register PF2e portrait container (includes health display)
     BG3HUD_API.registerPortraitContainer(Pf2ePortraitContainer);
-    
+
     // Register PF2e passives container (feat selection)
     BG3HUD_API.registerPassivesContainer(Pf2ePassivesContainer);
-    
+
     // Register PF2e weapon set container
     BG3HUD_API.registerWeaponSetContainer(Pf2eWeaponSetContainer);
-    
+
     // Register PF2e action buttons container (rest/turn buttons)
     BG3HUD_API.registerActionButtonsContainer(Pf2eActionButtonsContainer);
-    
+
     // Register PF2e filter container (action costs, traits, spell levels)
     BG3HUD_API.registerFilterContainer(Pf2eFilterContainer);
-    
+
     // Register PF2e info container (abilities, skills, saves)
     BG3HUD_API.registerInfoContainer(Pf2eInfoContainer);
 
@@ -86,7 +86,7 @@ Hooks.on('bg3HudReady', async (BG3HUD_API) => {
     }
 
     console.log('BG3 HUD PF2e | Registration complete');
-    
+
     // Signal that adapter registration is complete
     Hooks.call('bg3HudRegistrationComplete');
 });
@@ -100,15 +100,31 @@ class Pf2eAdapter {
         this.MODULE_ID = MODULE_ID; // Expose for core to access
         this.systemId = 'pf2e';
         this.name = 'PF2e Adapter';
-        
+
         // Initialize PF2e-specific features
         this.autoSort = new Pf2eAutoSort();
         this.autoPopulate = new Pf2eAutoPopulate();
-        
+
         // Link autoPopulate to autoSort for consistent sorting
         this.autoPopulate.setAutoSort(this.autoSort);
-        
+
         console.log('BG3 HUD PF2e | Pf2eAdapter created with autoSort and autoPopulate');
+    }
+
+    /**
+     * Get default portrait data configuration for PF2e
+     * Called by core when user hasn't configured portrait data yet
+     * @returns {Array<Object>} Default slot configurations
+     */
+    getPortraitDataDefaults() {
+        return [
+            { path: 'system.attributes.ac.value', icon: 'fas fa-shield-alt', color: '#4a90d9' },
+            { path: '{{system.resources.heroPoints.value}}/{{system.resources.heroPoints.max}}', icon: 'fas fa-star', color: '#f1c40f' },
+            { path: '', icon: '', color: '#ffffff' },
+            { path: '', icon: '', color: '#ffffff' },
+            { path: 'system.attributes.speed.total', icon: 'fas fa-running', color: '#2ecc71' },
+            { path: '', icon: '', color: '#ffffff' }
+        ];
     }
 
     /**
@@ -228,16 +244,12 @@ class Pf2eAdapter {
                 return;
             }
 
-            // For weapons/melee strikes, open the PF2E strike popout (MAP options, damage, crit)
+            // For weapons/melee strikes, render the strike chat card directly
+            // This bypasses the AttackPopout dialog and posts inline MAP buttons to chat
             if (item.actor && (item.type === 'weapon' || item.type === 'melee')) {
                 const strike = item.actor.system?.actions?.find?.((s) => s.item?.id === item.id);
-                if (strike && game.pf2e?.rollActionMacro) {
-                    await game.pf2e.rollActionMacro({
-                        actorUUID: item.actor.uuid,
-                        itemId: item.id,
-                        slug: strike.slug,
-                        type: 'strike',
-                    });
+                if (strike) {
+                    await this._postStrikeChatCard(item.actor, strike);
                     return;
                 }
             }
@@ -382,7 +394,7 @@ class Pf2eAdapter {
             const maxUses = parseInt(item.system.uses.max) || 0;
             if (maxUses > 0) {
                 const value = parseInt(item.system.uses.value) || 0;
-                
+
                 cellData.uses = {
                     value: value,
                     max: maxUses
@@ -546,6 +558,46 @@ class Pf2eAdapter {
             console.error(`[${MODULE_ID}] Failed to toggle grip`, { itemId: item.id, hands }, error);
             ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ActionFailed`));
         }
+    }
+
+    /**
+     * Post a strike chat card directly to chat
+     * This bypasses the AttackPopout dialog and shows inline MAP buttons
+     * @param {Actor} actor - The actor making the strike
+     * @param {Object} strike - The strike action from actor.system.actions
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _postStrikeChatCard(actor, strike) {
+        const meleeOrRanged = strike.item.isMelee ? 'melee' : 'ranged';
+        const identifier = `${strike.item.id}.${strike.slug}.${meleeOrRanged}`;
+
+        // Only pass essential data - no description to keep the card clean
+        const templateData = { actor, strike, identifier };
+
+        // Use PF2e's strike-card template
+        const content = await foundry.applications.handlebars.renderTemplate(
+            'systems/pf2e/templates/chat/strike-card.hbs',
+            templateData
+        );
+
+        const token = actor.token ?? actor.getActiveTokens(true, true).shift() ?? null;
+        const chatData = {
+            speaker: ChatMessage.getSpeaker({ actor, token }),
+            content,
+            style: CONST.CHAT_MESSAGE_STYLES.OTHER,
+        };
+
+        // Respect roll mode settings
+        const rollMode = game.settings.get('core', 'rollMode');
+        if (['gmroll', 'blindroll'].includes(rollMode)) {
+            chatData.whisper = ChatMessage.getWhisperRecipients('GM').map((u) => u.id);
+        }
+        if (rollMode === 'blindroll') {
+            chatData.blind = true;
+        }
+
+        await ChatMessage.create(chatData);
     }
 }
 

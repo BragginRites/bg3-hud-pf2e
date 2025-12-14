@@ -8,7 +8,7 @@ export async function createPf2ePortraitContainer() {
     const { PortraitContainer } = await import('/modules/bg3-hud-core/scripts/components/containers/PortraitContainer.js');
     const BG3ComponentModule = await import('/modules/bg3-hud-core/scripts/components/BG3Component.js');
     const BG3Component = BG3ComponentModule.BG3Component;
-    
+
     /**
      * Portrait Health Component
      * Displays HP, temp HP, and optional HP controls for PF2e
@@ -36,14 +36,14 @@ export async function createPf2ePortraitContainer() {
             if (this.parent && typeof this.parent.getHealth === 'function') {
                 return this.parent.getHealth();
             }
-            
+
             // Fallback: calculate directly
             const hpValue = this.actor.system.attributes?.hp?.value || 0;
             const hpMax = this.actor.system.attributes?.hp?.max || 1;
             const hpPercent = Math.max(0, Math.min(100, (hpValue / hpMax) * 100));
             const damagePercent = 100 - hpPercent;
             const tempHp = this.actor.system.attributes?.hp?.temp || 0;
-            
+
             return {
                 current: hpValue,
                 max: hpMax,
@@ -137,14 +137,14 @@ export async function createPf2ePortraitContainer() {
 
                 this.addEventListener(hpInput, 'focusout', async (event) => {
                     const inputValue = event.currentTarget.value.trim();
-                    const {value, delta, isDelta} = this._parseAttributeInput(inputValue);
-                    
+                    const { value, delta, isDelta } = this._parseAttributeInput(inputValue);
+
                     await this.actor.modifyTokenAttribute('attributes.hp', isDelta ? delta : value, isDelta);
-                    
+
                     if (isDelta && event.target.value === inputValue) {
                         event.target.value = this.actor.system.attributes.hp.value;
                     }
-                    
+
                     this.element.dataset.hpLocked = 'false';
                 });
 
@@ -161,7 +161,7 @@ export async function createPf2ePortraitContainer() {
                     event.preventDefault();
                     event.stopPropagation();
                     if (this.actor.system.attributes.hp.value < this.actor.system.attributes.hp.max) {
-                        await this.actor.update({'system.attributes.hp.value': this.actor.system.attributes.hp.max});
+                        await this.actor.update({ 'system.attributes.hp.value': this.actor.system.attributes.hp.max });
                     }
                 });
                 hpControlsDiv.appendChild(fullBtn);
@@ -246,10 +246,10 @@ export async function createPf2ePortraitContainer() {
             // Return parsed input
             const value = isDelta ? current + v : v;
             const delta = isDelta ? v : undefined;
-            return {value, delta, isDelta};
+            return { value, delta, isDelta };
         }
     }
-    
+
     /**
      * PF2e Portrait Container
      * Extends the core PortraitContainer with PF2e specific features:
@@ -278,7 +278,7 @@ export async function createPf2ePortraitContainer() {
             const hpPercent = Math.max(0, Math.min(100, (hpValue / hpMax) * 100));
             const damagePercent = 100 - hpPercent;
             const tempHp = this.actor.system.attributes?.hp?.temp || 0;
-            
+
             return {
                 current: hpValue,
                 max: hpMax,
@@ -296,7 +296,7 @@ export async function createPf2ePortraitContainer() {
         getPortraitImage() {
             // Check saved preference (undefined means use default: token image)
             const useTokenImage = this.actor?.getFlag('bg3-hud-pf2e', 'useTokenImage') ?? true;
-            
+
             if (useTokenImage) {
                 return this.token?.document?.texture?.src || this.actor?.img || '';
             } else {
@@ -310,16 +310,16 @@ export async function createPf2ePortraitContainer() {
          */
         async updateImagePreference() {
             if (!this.actor) return;
-            
+
             // Get current preference
             const currentPreference = this.actor.getFlag('bg3-hud-pf2e', 'useTokenImage') ?? true;
-            
+
             // Toggle the preference
             const newPreference = !currentPreference;
-            
+
             // Save to actor flags
             await this.actor.setFlag('bg3-hud-pf2e', 'useTokenImage', newPreference);
-            
+
             // The UpdateCoordinator will handle the re-render via _handleAdapterFlags
         }
 
@@ -358,12 +358,12 @@ export async function createPf2ePortraitContainer() {
             // Build portrait structure
             const portraitImageContainer = this.createElement('div', ['portrait-image-container']);
             const portraitImageSubContainer = this.createElement('div', ['portrait-image-subcontainer']);
-            
+
             // Portrait image
             const img = this.createElement('img', ['portrait-image']);
             img.src = imageSrc;
             img.alt = this.actor?.name || 'Portrait';
-            
+
             // Health overlay (red damage indicator) - check setting
             const showHealthOverlay = game.settings.get('bg3-hud-pf2e', 'showHealthOverlay') ?? true;
             if (showHealthOverlay) {
@@ -383,6 +383,10 @@ export async function createPf2ePortraitContainer() {
             // Assemble portrait image structure
             portraitImageSubContainer.appendChild(img);
             portraitImageContainer.appendChild(portraitImageSubContainer);
+
+            // Add portrait data badges (from core PortraitContainer)
+            await this._renderPortraitData(portraitImageContainer);
+
             this.element.appendChild(portraitImageContainer);
 
             // Register context menu for portrait image (right-click to toggle token/portrait)
@@ -465,7 +469,7 @@ export async function createPf2ePortraitContainer() {
             super.destroy();
         }
     }
-    
+
     return Pf2ePortraitContainer;
 }
 
