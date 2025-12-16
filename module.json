@@ -1,57 +1,57 @@
 {
-    "id": "bg3-hud-pf2e",
-    "title": "BG3 Inspired HUD - PF2e",
-    "description": "A PF2e integration module for the BG3 Inspired HUD. This module adapts the core HUD functionality for the Pathfinder 2e system, providing token-specific HUD elements for abilities, spells, and effects.",
-    "version": "0.1.1",
-    "authors": [
+  "id": "bg3-hud-pf2e",
+  "title": "BG3 Inspired HUD - PF2e",
+  "description": "A PF2e integration module for the BG3 Inspired HUD. This module adapts the core HUD functionality for the Pathfinder 2e system, providing token-specific HUD elements for abilities, spells, and effects.",
+  "version": "0.1.2",
+  "authors": [
+    {
+      "name": "BragginRites",
+      "discord": "Braggin#1205",
+      "flags": {}
+    }
+  ],
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
+  "esmodules": [
+    "scripts/module.js"
+  ],
+  "styles": [
+    "styles/index.css"
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "relationships": {
+    "requires": [
       {
-        "name": "BragginRites",
-        "discord": "Braggin#1205",
-        "flags": {}
+        "id": "bg3-hud-core",
+        "type": "module",
+        "compatibility": {
+          "minimum": "0.1.0"
+        }
       }
     ],
-    "compatibility": {
-      "minimum": "13",
-      "verified": "13"
-    },
-    "esmodules": [
-      "scripts/module.js"
-    ],
-    "styles": [
-      "styles/index.css"
-    ],
-    "languages": [
+    "systems": [
       {
-        "lang": "en",
-        "name": "English",
-        "path": "lang/en.json"
+        "id": "pf2e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "7",
+          "verified": "7.7.2"
+        }
       }
-    ],
-    "relationships": {
-      "requires": [
-        {
-          "id": "bg3-hud-core",
-          "type": "module",
-          "compatibility": {
-            "minimum": "0.1.0"
-          }
-        }
-      ],
-      "systems": [
-        {
-          "id": "pf2e",
-          "type": "system",
-          "compatibility": {
-            "minimum": "7",
-            "verified": "7.7.2"
-          }
-        }
-      ]
-    },
-    "persistentStorage": true,
-    "url": "https://github.com/BragginRites/bg3-hud-pf2e",
-    "manifest": "https://github.com/BragginRites/bg3-hud-pf2e/releases/download/0.1.1/module.json",
-    "download": "https://github.com/BragginRites/bg3-hud-pf2e/releases/download/0.1.1/bg3-hud-pf2e.zip",
-    "readme": "README.md",
-    "bugs": "https://github.com/BragginRites/bg3-hud-pf2e/issues"
-  }
+    ]
+  },
+  "persistentStorage": true,
+  "url": "https://github.com/BragginRites/bg3-hud-pf2e",
+  "manifest": "https://github.com/BragginRites/bg3-hud-pf2e/releases/download/0.1.2/module.json",
+  "download": "https://github.com/BragginRites/bg3-hud-pf2e/releases/download/0.1.2/bg3-hud-pf2e.zip",
+  "readme": "README.md",
+  "bugs": "https://github.com/BragginRites/bg3-hud-pf2e/issues"
+}
