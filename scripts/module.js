@@ -14,6 +14,7 @@ import { Pf2eAutoPopulate } from './features/Pf2eAutoPopulate.js';
 import { registerSettings } from './utils/settings.js';
 import { renderPf2eTooltip } from './utils/tooltipRenderer.js';
 import { Pf2eMenuBuilder } from './components/menus/Pf2eMenuBuilder.js';
+import { Pf2eTargetingRules } from './utils/Pf2eTargetingRules.js';
 
 const MODULE_ID = 'bg3-hud-pf2e';
 
@@ -105,10 +106,13 @@ class Pf2eAdapter {
         this.autoSort = new Pf2eAutoSort();
         this.autoPopulate = new Pf2eAutoPopulate();
 
+        // Targeting rules for target selector integration
+        this.targetingRules = Pf2eTargetingRules;
+
         // Link autoPopulate to autoSort for consistent sorting
         this.autoPopulate.setAutoSort(this.autoSort);
 
-        console.log('BG3 HUD PF2e | Pf2eAdapter created with autoSort and autoPopulate');
+        console.log('BG3 HUD PF2e | Pf2eAdapter created with autoSort, autoPopulate, and targetingRules');
     }
 
     /**
@@ -232,6 +236,52 @@ class Pf2eAdapter {
         }
 
         console.log('PF2e Adapter | Using item:', item.name);
+
+        // Resolve activity/strike for targeting checks
+        let activity = null;
+        if (item.actor && (item.type === 'weapon' || item.type === 'melee')) {
+            const strike = item.actor.system?.actions?.find?.((s) => s.item?.id === item.id);
+            if (strike) {
+                activity = strike;
+                // Ensure type is 'strike' for the targeting rules check
+                if (!activity.type) {
+                    activity = { ...strike, type: 'strike', original: strike };
+                }
+            }
+        }
+
+        // Check if item needs targeting and target selector is enabled
+        const targetSelectorEnabled = game.settings.get('bg3-hud-core', 'enableTargetSelector');
+        const needsTargeting = targetSelectorEnabled && this.targetingRules?.needsTargeting({ item, activity });
+
+        if (needsTargeting && item.actor) {
+            // Get the source token
+            const sourceToken = item.actor.token?.object ??
+                canvas?.tokens?.placeables?.find(t => t.actor?.id === item.actor.id) ??
+                null;
+
+            if (sourceToken) {
+                try {
+                    // Start target selection
+                    const targets = await ui.BG3HOTBAR?.api?.startTargetSelection({
+                        token: sourceToken,
+                        item: item,
+                        activity: activity
+                    });
+
+                    // If user cancelled (empty array returned when cancelled), abort item use
+                    if (!targets || targets.length === 0) {
+                        console.log('PF2e Adapter | Target selection cancelled');
+                        return;
+                    }
+
+                    console.log('PF2e Adapter | Targets selected:', targets.map(t => t.name).join(', '));
+                } catch (error) {
+                    console.error('PF2e Adapter | Target selection error:', error);
+                    return;
+                }
+            }
+        }
 
         try {
             // Special-case Take Cover action items to avoid dialogs; use shield-derived cover
