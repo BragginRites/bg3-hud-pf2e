@@ -42,8 +42,8 @@ Check out my other module(s):
 ## Requirements
 
 - **Foundry VTT**: Version 13 or higher
-- **Required Module**: bg3-hud-core (version 0.1.0 or higher)
-- **System**: Pathfinder 2e (version 5.0.0 or higher)
+- **Required Module**: bg3-hud-core (version 0.1.1 or higher)
+- **System**: Pathfinder 2e (version 7.0.0 or higher, verified with 7.7.2)
 
 ## Acknowledgments
 
