@@ -2,6 +2,8 @@
 
 A Pathfinder 2e integration module for the BG3 Inspired HUD system. This module adapts the core HUD functionality for the Pathfinder 2e system, providing token-specific HUD elements for abilities, spells, and effects with a design inspired by Baldur's Gate 3.
 
+<img width="1247" height="282" alt="image" src="https://github.com/user-attachments/assets/83c1d3fe-4219-4285-98a8-fc7a6175032f" />
+
 **This module requires the bg3-hud-core module to function.**
 
 ## BG3 HUD Modules
