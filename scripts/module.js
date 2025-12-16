@@ -299,6 +299,26 @@ class Pf2eAdapter {
             if (item.actor && (item.type === 'weapon' || item.type === 'melee')) {
                 const strike = item.actor.system?.actions?.find?.((s) => s.item?.id === item.id);
                 if (strike) {
+                    // Handle modifier key overrides for quick rolling
+                    // We must pass a sanitized event to prevent PF2e from interpreting modifiers as Roll Mode overrides (e.g. Ctrl=Blind)
+                    if (event.shiftKey || event.ctrlKey || event.altKey) {
+                        const options = {
+                            event: {
+                                shiftKey: false,
+                                ctrlKey: false,
+                                altKey: false,
+                                metaKey: false,
+                                type: 'click',
+                                preventDefault: () => { },
+                                stopPropagation: () => { }
+                            }
+                        };
+
+                        if (event.shiftKey) return strike.variants[0]?.roll(options);
+                        if (event.ctrlKey) return strike.variants[1]?.roll(options);
+                        if (event.altKey) return strike.variants[2]?.roll(options);
+                    }
+
                     await this._postStrikeChatCard(item.actor, strike);
                     return;
                 }
