@@ -1,3 +1,7 @@
+## [0.1.4] - 2025-12-17
+### Changed
+- **Dependency Update**: Updated core dependency to version 0.1.4.
+
 ## [0.1.3] - 2025-12-17
 ### Added
 - **Prepared Spell Filtering**: Separate settings for Players (default: on) and NPCs (default: off) to filter spell containers to only show prepared spells. Spontaneous, innate, and focus spells are always included. (Closes #5)
