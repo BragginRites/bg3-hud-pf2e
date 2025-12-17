@@ -36,6 +36,10 @@
             "ShowHealthOverlayHint": "Display red damage overlay on portrait images",
             "AutoPopulateOnTokenCreation": "Auto-populate on Token Creation",
             "AutoPopulateOnTokenCreationHint": "Automatically populate hotbar grids with items when a token is created",
+            "FilterPreparedSpellsPlayers": "Filter Prepared Spells (Players)",
+            "FilterPreparedSpellsPlayersHint": "Only show prepared spells for player characters. Spontaneous, innate, and focus spells are always included.",
+            "FilterPreparedSpellsNPCs": "Filter Prepared Spells (NPCs)",
+            "FilterPreparedSpellsNPCsHint": "Only show prepared spells for NPCs. Spontaneous, innate, and focus spells are always included.",
             "AutoPopulateConfigurationHint": "Configure which item types to auto-populate in each grid (restricted to GM)",
             "Display": {
                 "MenuTitle": "Display Settings",

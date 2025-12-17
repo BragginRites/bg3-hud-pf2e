@@ -54,118 +54,138 @@ class AutoPopulateConfigMenu extends foundry.applications.api.ApplicationV2 {
  * Register PF2e adapter module settings
  */
 export function registerSettings() {
-    // Register all actual settings first, before creating submenu classes
-    
-    // Auto-populate passives setting
-    game.settings.register(MODULE_ID, 'autoPopulatePassivesEnabled', {
-        name: `${MODULE_ID}.Settings.AutoPopulatePassives`,
-        hint: `${MODULE_ID}.Settings.AutoPopulatePassivesHint`,
-        scope: 'world',
-        config: false,
-        type: Boolean,
-        default: true
-    });
+  // Register all actual settings first, before creating submenu classes
 
-    // Display item names setting
-    game.settings.register(MODULE_ID, 'showItemNames', {
-        name: `${MODULE_ID}.Settings.ShowItemNames`,
-        hint: `${MODULE_ID}.Settings.ShowItemNamesHint`,
-        scope: 'client',
-        config: false,
-        type: Boolean,
-        default: false
-    });
+  // Auto-populate passives setting
+  game.settings.register(MODULE_ID, 'autoPopulatePassivesEnabled', {
+    name: `${MODULE_ID}.Settings.AutoPopulatePassives`,
+    hint: `${MODULE_ID}.Settings.AutoPopulatePassivesHint`,
+    scope: 'world',
+    config: false,
+    type: Boolean,
+    default: true
+  });
 
-    // Display item uses setting
-    game.settings.register(MODULE_ID, 'showItemUses', {
-        name: `${MODULE_ID}.Settings.ShowItemUses`,
-        hint: `${MODULE_ID}.Settings.ShowItemUsesHint`,
-        scope: 'client',
-        config: false,
-        type: Boolean,
-        default: true
-    });
+  // Display item names setting
+  game.settings.register(MODULE_ID, 'showItemNames', {
+    name: `${MODULE_ID}.Settings.ShowItemNames`,
+    hint: `${MODULE_ID}.Settings.ShowItemNamesHint`,
+    scope: 'client',
+    config: false,
+    type: Boolean,
+    default: false
+  });
 
-    // Show health overlay setting
-    game.settings.register(MODULE_ID, 'showHealthOverlay', {
-        name: `${MODULE_ID}.Settings.ShowHealthOverlay`,
-        hint: `${MODULE_ID}.Settings.ShowHealthOverlayHint`,
-        scope: 'client',
-        config: false,
-        type: Boolean,
-        default: true
-    });
+  // Display item uses setting
+  game.settings.register(MODULE_ID, 'showItemUses', {
+    name: `${MODULE_ID}.Settings.ShowItemUses`,
+    hint: `${MODULE_ID}.Settings.ShowItemUsesHint`,
+    scope: 'client',
+    config: false,
+    type: Boolean,
+    default: true
+  });
 
-    // Auto-populate on token creation setting
-    game.settings.register(MODULE_ID, 'autoPopulateEnabled', {
-        name: `${MODULE_ID}.Settings.AutoPopulateOnTokenCreation`,
-        hint: `${MODULE_ID}.Settings.AutoPopulateOnTokenCreationHint`,
-        scope: 'world',
-        config: false,
-        type: Boolean,
-        default: false
-    });
+  // Show health overlay setting
+  game.settings.register(MODULE_ID, 'showHealthOverlay', {
+    name: `${MODULE_ID}.Settings.ShowHealthOverlay`,
+    hint: `${MODULE_ID}.Settings.ShowHealthOverlayHint`,
+    scope: 'client',
+    config: false,
+    type: Boolean,
+    default: true
+  });
 
-    // Auto-populate configuration setting
-    game.settings.register(MODULE_ID, 'autoPopulateConfiguration', {
-        name: `${MODULE_ID}.Settings.AutoPopulateConfiguration`,
-        hint: `${MODULE_ID}.Settings.AutoPopulateConfigurationHint`,
-        restricted: true,
-        scope: 'world',
-        config: false,
-        type: Object,
-        default: {
-            grid0: ['weapon', 'melee', 'action'],  // Main combat: weapons, strikes, and actions
-            grid1: ['feat', 'spell'],     // Abilities: feats and spells
-            grid2: ['consumable', 'ammo'] // Consumables and ammunition
-        }
-    });
+  // Auto-populate on token creation setting
+  game.settings.register(MODULE_ID, 'autoPopulateEnabled', {
+    name: `${MODULE_ID}.Settings.AutoPopulateOnTokenCreation`,
+    hint: `${MODULE_ID}.Settings.AutoPopulateOnTokenCreationHint`,
+    scope: 'world',
+    config: false,
+    type: Boolean,
+    default: false
+  });
 
-    // Now create submenu classes that reference the registered settings
-    const DisplaySettingsMenu = createSettingsSubmenu({
-        moduleId: MODULE_ID,
-        titleKey: `${MODULE_ID}.Settings.Display.MenuTitle`,
-        sections: [
-            { legend: `${MODULE_ID}.Settings.Display.Legend`, keys: ['showItemNames', 'showItemUses', 'showHealthOverlay'] }
-        ]
-    });
+  // Filter to prepared spells only - Players
+  game.settings.register(MODULE_ID, 'filterPreparedSpellsPlayers', {
+    name: `${MODULE_ID}.Settings.FilterPreparedSpellsPlayers`,
+    hint: `${MODULE_ID}.Settings.FilterPreparedSpellsPlayersHint`,
+    scope: 'world',
+    config: false,
+    type: Boolean,
+    default: true
+  });
 
-    const AutoPopulateSettingsMenu = createSettingsSubmenu({
-        moduleId: MODULE_ID,
-        titleKey: `${MODULE_ID}.Settings.AutoPopulate.MenuTitle`,
-        sections: [
-            { legend: `${MODULE_ID}.Settings.AutoPopulate.Legend`, keys: ['autoPopulateEnabled', 'autoPopulatePassivesEnabled'] }
-        ]
-    });
+  // Filter to prepared spells only - NPCs
+  game.settings.register(MODULE_ID, 'filterPreparedSpellsNPCs', {
+    name: `${MODULE_ID}.Settings.FilterPreparedSpellsNPCs`,
+    hint: `${MODULE_ID}.Settings.FilterPreparedSpellsNPCsHint`,
+    scope: 'world',
+    config: false,
+    type: Boolean,
+    default: false
+  });
 
-    // Auto-populate configuration menu
-    game.settings.registerMenu(MODULE_ID, 'autoPopulateConfigurationMenu', {
-        name: `${MODULE_ID}.Settings.ConfigureAutoPopulateGrids`,
-        label: `${MODULE_ID}.Settings.ConfigureGrids`,
-        hint: `${MODULE_ID}.Settings.ConfigureGridsHint`,
-        icon: 'fas fa-grid-2',
-        type: AutoPopulateConfigMenu,
-        restricted: true,
-    });
+  // Auto-populate configuration setting
+  game.settings.register(MODULE_ID, 'autoPopulateConfiguration', {
+    name: `${MODULE_ID}.Settings.AutoPopulateConfiguration`,
+    hint: `${MODULE_ID}.Settings.AutoPopulateConfigurationHint`,
+    restricted: true,
+    scope: 'world',
+    config: false,
+    type: Object,
+    default: {
+      grid0: ['weapon', 'melee', 'action'],  // Main combat: weapons, strikes, and actions
+      grid1: ['feat', 'spell'],     // Abilities: feats and spells
+      grid2: ['consumable', 'ammo'] // Consumables and ammunition
+    }
+  });
 
-    // Display submenu
-    game.settings.registerMenu(MODULE_ID, 'displaySettingsMenu', {
-        name: `${MODULE_ID}.Settings.Display.MenuName`,
-        label: `${MODULE_ID}.Settings.Display.MenuLabel`,
-        hint: `${MODULE_ID}.Settings.Display.MenuHint`,
-        icon: 'fas fa-list',
-        type: DisplaySettingsMenu,
-        restricted: true
-    });
+  // Now create submenu classes that reference the registered settings
+  const DisplaySettingsMenu = createSettingsSubmenu({
+    moduleId: MODULE_ID,
+    titleKey: `${MODULE_ID}.Settings.Display.MenuTitle`,
+    sections: [
+      { legend: `${MODULE_ID}.Settings.Display.Legend`, keys: ['showItemNames', 'showItemUses', 'showHealthOverlay'] }
+    ]
+  });
 
-    // Auto-populate submenu
-    game.settings.registerMenu(MODULE_ID, 'autoPopulateSettingsMenu', {
-        name: `${MODULE_ID}.Settings.AutoPopulate.MenuName`,
-        label: `${MODULE_ID}.Settings.AutoPopulate.MenuLabel`,
-        hint: `${MODULE_ID}.Settings.AutoPopulate.MenuHint`,
-        icon: 'fas fa-list',
-        type: AutoPopulateSettingsMenu,
-        restricted: true
-    });
+  const AutoPopulateSettingsMenu = createSettingsSubmenu({
+    moduleId: MODULE_ID,
+    titleKey: `${MODULE_ID}.Settings.AutoPopulate.MenuTitle`,
+    sections: [
+      { legend: `${MODULE_ID}.Settings.AutoPopulate.Legend`, keys: ['autoPopulateEnabled', 'autoPopulatePassivesEnabled', 'filterPreparedSpellsPlayers', 'filterPreparedSpellsNPCs'] }
+    ]
+  });
+
+  // Auto-populate configuration menu
+  game.settings.registerMenu(MODULE_ID, 'autoPopulateConfigurationMenu', {
+    name: `${MODULE_ID}.Settings.ConfigureAutoPopulateGrids`,
+    label: `${MODULE_ID}.Settings.ConfigureGrids`,
+    hint: `${MODULE_ID}.Settings.ConfigureGridsHint`,
+    icon: 'fas fa-grid-2',
+    type: AutoPopulateConfigMenu,
+    restricted: true,
+  });
+
+  // Display submenu
+  game.settings.registerMenu(MODULE_ID, 'displaySettingsMenu', {
+    name: `${MODULE_ID}.Settings.Display.MenuName`,
+    label: `${MODULE_ID}.Settings.Display.MenuLabel`,
+    hint: `${MODULE_ID}.Settings.Display.MenuHint`,
+    icon: 'fas fa-list',
+    type: DisplaySettingsMenu,
+    restricted: true
+  });
+
+  // Auto-populate submenu
+  game.settings.registerMenu(MODULE_ID, 'autoPopulateSettingsMenu', {
+    name: `${MODULE_ID}.Settings.AutoPopulate.MenuName`,
+    label: `${MODULE_ID}.Settings.AutoPopulate.MenuLabel`,
+    hint: `${MODULE_ID}.Settings.AutoPopulate.MenuHint`,
+    icon: 'fas fa-list',
+    type: AutoPopulateSettingsMenu,
+    restricted: true
+  });
 }
 
