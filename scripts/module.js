@@ -147,11 +147,19 @@ class Pf2eAdapter {
             case 'Item':
                 await this._useItem(data.uuid, event);
                 break;
+            case 'Strike':
+                await this._useStrike(data, event);
+                break;
             case 'Macro':
                 await this._executeMacro(data.uuid);
                 break;
             default:
-                console.warn('PF2e Adapter | Unknown cell data type:', data.type);
+                // Fallback: try to use as item UUID for backwards compatibility
+                if (data.uuid) {
+                    await this._useItem(data.uuid, event);
+                } else {
+                    console.warn('PF2e Adapter | Unknown cell data type:', data.type);
+                }
         }
     }
 
@@ -250,6 +258,17 @@ class Pf2eAdapter {
             }
         }
 
+        // For shields, find the generated weapon strike for targeting
+        if (item.actor && item.type === 'shield') {
+            const strike = item.actor.system?.actions?.find?.((s) => s.item?.shield?.id === item.id);
+            if (strike) {
+                activity = strike;
+                if (!activity.type) {
+                    activity = { ...strike, type: 'strike', original: strike };
+                }
+            }
+        }
+
         // Check if item needs targeting and target selector is enabled
         const targetSelectorEnabled = game.settings.get('bg3-hud-core', 'enableTargetSelector');
         const needsTargeting = targetSelectorEnabled && this.targetingRules?.needsTargeting({ item, activity });
@@ -324,6 +343,67 @@ class Pf2eAdapter {
                 }
             }
 
+            // For shields, find the generated weapon strike (PF2e creates a weapon from shields via generateWeapon())
+            // The generated weapon has a `shield` property pointing back to the original shield item
+            if (item.actor && item.type === 'shield') {
+                const strike = item.actor.system?.actions?.find?.((s) => s.item?.shield?.id === item.id);
+                if (strike) {
+                    // Handle modifier key overrides for quick rolling
+                    if (event.shiftKey || event.ctrlKey || event.altKey) {
+                        const options = {
+                            event: {
+                                shiftKey: false,
+                                ctrlKey: false,
+                                altKey: false,
+                                metaKey: false,
+                                type: 'click',
+                                preventDefault: () => { },
+                                stopPropagation: () => { }
+                            }
+                        };
+
+                        if (event.shiftKey) return strike.variants[0]?.roll(options);
+                        if (event.ctrlKey) return strike.variants[1]?.roll(options);
+                        if (event.altKey) return strike.variants[2]?.roll(options);
+                    }
+
+                    await this._postStrikeChatCard(item.actor, strike);
+                    return;
+                }
+            }
+
+            // For spells, use the spellcasting entry's cast() method to properly consume slots
+            if (item.type === 'spell' && item.actor) {
+                const entryId = item.system?.location?.value;
+                const entry = entryId ? item.actor.items.get(entryId) : null;
+
+                if (entry && typeof entry.cast === 'function') {
+                    // Get the spell's rank (level in PF2e terminology)
+                    const rank = item.system?.level?.value ?? item.rank ?? 1;
+                    await entry.cast(item, { rank, consume: true });
+                    return;
+                }
+
+                // Fallback: If no entry or cast method, use toMessage (won't consume)
+                console.warn('PF2e Adapter | Spell has no spellcasting entry with cast method, falling back to toMessage');
+            }
+
+            // For feats and action items, properly USE the action (apply effects, decrement frequency)
+            if (item.type === 'feat' || item.type === 'action') {
+                await this._useAction(item, event);
+                return;
+            }
+
+            // For consumables, use the consume method if available
+            if (item.type === 'consumable') {
+                if (typeof item.consume === 'function') {
+                    await item.consume();
+                } else if (typeof item.toMessage === 'function') {
+                    await item.toMessage(event, { create: true });
+                }
+                return;
+            }
+
             if (typeof item.toMessage === 'function') {
                 await item.toMessage(event, { create: true });
                 return;
@@ -339,6 +419,80 @@ class Pf2eAdapter {
             console.error('[bg3-hud-pf2e] Failed to use item', { uuid: item.uuid, name: item.name }, error);
             ui.notifications.error(game.i18n.localize(`${MODULE_ID}.Notifications.ItemCannotBeUsed`));
         }
+    }
+
+    /**
+     * Use a strike from stored strike reference data
+     * @param {Object} strikeData - Strike reference data (actorId, itemId, slug, meleeOrRanged)
+     * @param {MouseEvent} event - The triggering event
+     * @private
+     */
+    async _useStrike(strikeData, event) {
+        const { actorId, itemId, slug } = strikeData;
+
+        // Resolve the actor
+        const actor = game.actors.get(actorId);
+        if (!actor) {
+            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ActorNotFound`));
+            return;
+        }
+
+        // Find the strike in actor.system.actions
+        const actions = actor.system?.actions ?? [];
+        const strike = actions.find(s => s.item?.id === itemId && s.slug === slug);
+
+        if (!strike) {
+            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.StrikeNotFound`));
+            return;
+        }
+
+        console.log('PF2e Adapter | Using strike:', strike.label);
+
+        // Handle modifier key overrides for quick rolling
+        if (event.shiftKey || event.ctrlKey || event.altKey) {
+            const options = {
+                event: {
+                    shiftKey: false,
+                    ctrlKey: false,
+                    altKey: false,
+                    metaKey: false,
+                    type: 'click',
+                    preventDefault: () => { },
+                    stopPropagation: () => { }
+                }
+            };
+
+            if (event.shiftKey) return strike.variants[0]?.roll(options);
+            if (event.ctrlKey) return strike.variants[1]?.roll(options);
+            if (event.altKey) return strike.variants[2]?.roll(options);
+        }
+
+        // Post the strike chat card
+        await this._postStrikeChatCard(actor, strike);
+    }
+
+    /**
+     * Use a feat or action item properly (apply selfEffect, decrement frequency)
+     * Uses PF2e's native rollItemMacro which handles all the proper logic
+     * @param {Item} item - The feat or action item
+     * @param {MouseEvent} event - The triggering event
+     * @private
+     */
+    async _useAction(item, event) {
+        console.log('PF2e Adapter | Using action via rollItemMacro:', item.name);
+
+        // Use PF2e's native rollItemMacro which properly:
+        // - Calls createUseActionMessage
+        // - Decrements frequency
+        // - Applies selfEffect
+        if (typeof game.pf2e?.rollItemMacro === 'function') {
+            await game.pf2e.rollItemMacro(item.uuid, event);
+            return;
+        }
+
+        // Fallback if API not available
+        console.warn('PF2e Adapter | game.pf2e.rollItemMacro not available, using toMessage');
+        await item.toMessage?.(event, { create: true });
     }
 
     /**
@@ -401,8 +555,20 @@ class Pf2eAdapter {
         // Add item type
         cellElement.dataset.itemType = item.type;
 
-        // Add action cost (PF2e uses system.actions.value: 1, 2, or 3)
-        const actionCost = item.system?.actions?.value ?? 0;
+        // Add action cost 
+        // - For actions/feats: system.actions.value (number: 1, 2, 3)
+        // - For spells: system.time.value (string: "1", "2", "3", or descriptive like "reaction")
+        let actionCost = item.system?.actions?.value ?? 0;
+
+        // For spells, check system.time.value
+        if (item.type === 'spell' && !actionCost) {
+            const timeValue = item.system?.time?.value ?? '';
+            // Parse numeric action costs (1, 2, 3)
+            if (['1', '2', '3'].includes(timeValue)) {
+                actionCost = parseInt(timeValue);
+            }
+        }
+
         if (actionCost > 0) {
             cellElement.dataset.actionCost = actionCost;
         }
@@ -415,11 +581,55 @@ class Pf2eAdapter {
 
         // Add spell-specific attributes
         if (item.type === 'spell') {
-            cellElement.dataset.level = item.system?.level?.value ?? 0;
-            // Check if it's a focus spell
-            if (item.system?.traits?.value?.includes('focus')) {
+            const actor = item.actor;
+            const spellId = item.id;
+            let preparedRank = null;
+
+            // Check if it's a focus spell (use base rank)
+            const isFocusSpell = item.system?.traits?.value?.includes('focus');
+            if (isFocusSpell) {
                 cellElement.dataset.isFocusSpell = 'true';
+                cellElement.dataset.level = item.system?.level?.value ?? 0;
+                return;
             }
+
+            // For prepared spells, find which slot rank the spell is prepared in
+            if (actor) {
+                const entryId = item.system?.location?.value;
+                const entry = entryId ? actor.items.get(entryId) : null;
+
+                if (entry?.type === 'spellcastingEntry') {
+                    const tradition = entry.system?.prepared?.value;
+
+                    // For prepared casters, look up which slot the spell is in
+                    if (tradition === 'prepared') {
+                        const slots = entry.system?.slots ?? {};
+                        for (let rank = 0; rank <= 10; rank++) {
+                            const slotKey = `slot${rank}`;
+                            const slotData = slots[slotKey];
+                            const preparedList = slotData?.prepared;
+
+                            if (!preparedList) continue;
+
+                            const preparedArray = Array.isArray(preparedList)
+                                ? preparedList
+                                : Object.values(preparedList);
+
+                            // Check if this spell is prepared in this slot
+                            for (const prep of preparedArray) {
+                                if (prep?.id === spellId) {
+                                    preparedRank = rank;
+                                    break;
+                                }
+                            }
+                            if (preparedRank !== null) break;
+                        }
+                    }
+                }
+            }
+
+            // Use preparation rank if found, otherwise fall back to base rank
+            cellElement.dataset.level = preparedRank ?? item.system?.level?.value ?? 0;
         }
     }
 

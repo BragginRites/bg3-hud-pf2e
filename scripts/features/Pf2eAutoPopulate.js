@@ -36,31 +36,20 @@ const PF2E_TEMPLATE_ITEM_TYPES = [
 export class Pf2eAutoPopulate extends AutoPopulateFramework {
     /**
      * Get PF2e item type choices (grouped)
+     * Note: "Actions" combines strikes, action items, and feats with action costs
      * @returns {Promise<Array<{group: string, choices: Array<{value: string, label: string}>}>>}
      */
     async getItemTypeChoices() {
         const systemTypes = this._getSystemItemTypes();
         const groups = [];
 
+        // Combat choices - "Actions" combines all usable combat things
         const combatChoices = [];
-        if (systemTypes.has('weapon')) {
-            combatChoices.push(this._buildChoice('weapon', 'Weapons'));
-        }
-        if (systemTypes.has('melee')) {
-            combatChoices.push(this._buildChoice('melee', 'Melee'));
-        }
-        if (systemTypes.has('action')) {
-            combatChoices.push(this._buildChoice('action', 'Actions'));
-        }
-        if (systemTypes.has('feat')) {
-            combatChoices.push(this._buildChoice('feat', 'Feats'));
-        }
+        // "Actions" includes: strikes from actor.system.actions + action items + feats with action costs
+        combatChoices.push(this._buildChoice('actions', 'Actions'));
         if (systemTypes.has('spell')) {
             combatChoices.push(this._buildChoice('spell', 'Spells'));
             combatChoices.push(this._buildChoice('spell:focus', 'FocusSpells'));
-        }
-        if ((systemTypes.has('weapon') || systemTypes.has('melee')) && combatChoices.length > 0) {
-            combatChoices.unshift(this._buildChoice('attack', 'Attacks'));
         }
         if (combatChoices.length > 0) {
             groups.push({
@@ -90,9 +79,6 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
         if (systemTypes.has('armor')) {
             equipmentChoices.push(this._buildChoice('armor', 'Armor'));
         }
-        if (systemTypes.has('shield')) {
-            equipmentChoices.push(this._buildChoice('shield', 'Shields'));
-        }
         if (systemTypes.has('backpack')) {
             equipmentChoices.push(this._buildChoice('backpack', 'Backpacks'));
         }
@@ -108,14 +94,65 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
 
     /**
      * Get items from actor that match selected types
-     * Includes PF2e-specific filtering (action cost, spell preparation, etc.)
+     * For 'actions' type, gets weapon items (for strikes) + action items + feats with action costs
+     * For other types, uses item filtering
      * @param {Actor} actor - The actor
      * @param {Array<string>} selectedTypes - Selected type values
-     * @returns {Promise<Array<{uuid: string}>>}
+     * @returns {Promise<Array<Object>>} Array of cell data objects
      */
     async getMatchingItems(actor, selectedTypes) {
         const items = [];
+        const includeActions = selectedTypes.includes('actions');
+        const addedUuids = new Set(); // Track to avoid duplicates
 
+        // Handle 'actions' type - gets items that produce actions
+        if (includeActions) {
+            // 1. Add weapon items from strikes (using their item UUIDs)
+            const actions = actor.system?.actions ?? [];
+            for (const strike of actions) {
+                // Skip non-visible strikes
+                if (!strike.visible) continue;
+
+                // Get the underlying item
+                const item = strike.item;
+                if (!item?.uuid || addedUuids.has(item.uuid)) continue;
+
+                addedUuids.add(item.uuid);
+                items.push({ uuid: item.uuid, type: 'Item', name: item.name, img: item.img });
+            }
+
+            // 2. Add action-type items with action costs
+            for (const item of actor.items) {
+                if (item.type !== 'action') continue;
+                if (!this._hasActions(item)) continue;
+                if (addedUuids.has(item.uuid)) continue;
+
+                addedUuids.add(item.uuid);
+                items.push({ uuid: item.uuid, type: 'Item', name: item.name, img: item.img });
+            }
+
+            // 3. Add feats with action costs
+            for (const item of actor.items) {
+                if (item.type !== 'feat') continue;
+                if (!this._hasActions(item)) continue;
+                if (addedUuids.has(item.uuid)) continue;
+
+                addedUuids.add(item.uuid);
+                items.push({ uuid: item.uuid, type: 'Item', name: item.name, img: item.img });
+            }
+
+            // 4. Add consumables with actions (potions, elixirs, etc.)
+            for (const item of actor.items) {
+                if (item.type !== 'consumable') continue;
+                if (!this._hasActions(item)) continue;
+                if (addedUuids.has(item.uuid)) continue;
+
+                addedUuids.add(item.uuid);
+                items.push({ uuid: item.uuid, type: 'Item', name: item.name, img: item.img });
+            }
+        }
+
+        // Handle other item types (spells, consumables, equipment, etc.)
         for (const item of actor.items) {
             if (!this._matchesType(item, selectedTypes)) {
                 continue;
@@ -125,13 +162,7 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
                 continue;
             }
 
-            const isAttack = item.type === 'melee' || item.type === 'weapon';
-
-            if (!isAttack && (item.type === 'action' || item.type === 'feat') && !this._hasActions(item)) {
-                continue;
-            }
-
-            items.push({ uuid: item.uuid });
+            items.push({ uuid: item.uuid, type: 'Item', name: item.name, img: item.img });
         }
 
         return items;
@@ -139,6 +170,7 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
 
     /**
      * Check if item matches any of the selected types
+     * Note: 'actions' type is handled separately in getMatchingItems
      * @param {Item} item - The item to check
      * @param {Array<string>} selectedTypes - Selected type values
      * @returns {boolean}
@@ -147,6 +179,9 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
     _matchesType(item, selectedTypes) {
         const itemType = item.type;
         for (const selectedType of selectedTypes) {
+            // Skip 'actions' - handled separately (combines strikes + action items + feats)
+            if (selectedType === 'actions') continue;
+
             if (selectedType.includes(':')) {
                 const [mainType, subType] = selectedType.split(':');
 
@@ -157,13 +192,6 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
                     return traits.includes('focus');
                 }
             } else {
-                if (selectedType === 'attack') {
-                    if (itemType === 'weapon' || itemType === 'melee') {
-                        return true;
-                    }
-                    continue;
-                }
-
                 if (itemType === selectedType) return true;
             }
         }
@@ -224,19 +252,37 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
             return true;
         }
 
-        // Prepared tradition: only include if spell is actually prepared
-        // In PF2e, prepared spells are tracked differently - signature spells are always prepared
+        // Prepared tradition: only include if spell is actually prepared in a slot
+        // In PF2e, prepared spells are tracked in entry.system.slots[slotX].prepared[]
         if (tradition === 'prepared') {
             // Signature spells are always available
             if (location.signature) {
                 return true;
             }
 
-            // Check if the spell slot has uses remaining
-            // PF2e tracks prepared spells via the spellcasting entry's slots
-            // For simplicity, if the spell is in the spellbook it can be prepared
-            // The actual slot management is handled by the system
-            return true;
+            // Check if the spell is slotted in the prepared list
+            const slots = entryData.slots ?? {};
+            for (const slotKey of Object.keys(slots)) {
+                const slotData = slots[slotKey];
+                const preparedList = slotData?.prepared;
+
+                // prepared can be array or object depending on slot usage
+                if (!preparedList) continue;
+
+                const preparedArray = Array.isArray(preparedList)
+                    ? preparedList
+                    : Object.values(preparedList);
+
+                // Check if this spell's ID exists in any prepared slot
+                for (const preparedSlot of preparedArray) {
+                    if (preparedSlot?.id === item.id) {
+                        return true;
+                    }
+                }
+            }
+
+            // Spell is not prepared in any slot
+            return false;
         }
 
         // Focus tradition: focus spells are always usable

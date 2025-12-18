@@ -1,3 +1,24 @@
+## [0.1.5] - 2025-12-18
+### Added
+- **Spell Rank Filters**: Replaced trait filters with spell rank filters (C, I, II, III, etc.) that show centered text labels. Cantrips use "C", ranks 1-10 use Roman numerals.
+- **Focus Spell Pips**: Focus spell filter now shows focus pool pips (value/max).
+- **Action Economy Tracking**: Action filters now track remaining actions. Pips decrease as actions are used (read from `actionsUsed` actor flag).
+- **"Actions" Auto-Populate**: New combined "Actions" option that includes weapon strikes, action items, feats with action costs, and consumables with actions.
+
+### Fixed
+- **Spell Preparation Filter**: Fixed prepared spell filtering to correctly check if a spell is actually slotted in the spellcasting entry's prepared slots.
+- **Preparation Rank Display**: Spell rank filters now match spells by their preparation rank (e.g., Heal at 4th rank), not base rank.
+- **Spell Action Costs**: Fixed action cost detection for spells to read from `system.time.value` instead of `system.actions.value`.
+- **Spell Consumption**: Casting a spell from the HUD now properly consumes the spell slot via `entry.cast()`.
+- **Range Calculation**: Fixed range to convert feet to grid squares (60ft ÷ 5 = 12 squares), ensuring correct range indicator display and range checking regardless of scene configuration.
+- **Range Check Distance**: Fixed distance calculation to use edge-to-edge grid-based measurement consistently.
+- **Feat/Action Usage**: Feats and actions with selfEffect (like Everstand Stance) now properly apply their effects and decrement frequency via `game.pf2e.rollItemMacro`.
+- **Strike Drag-and-Drop**: Fixed dragging strikes from PF2e character sheet Actions tab to the hotbar (core now handles `type: 'Action'` drag data).
+
+### Changed
+- **Filter Order**: Reordered filters to: Action pips → Weapons/Actions/Feats → Focus → Spell Ranks.
+- **Spell Color**: Changed spell filter color from purple to consistent blue (#3497d9).
+
 ## [0.1.4] - 2025-12-17
 ### Changed
 - **Dependency Update**: Updated core dependency to version 0.1.4.

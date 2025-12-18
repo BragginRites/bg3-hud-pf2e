@@ -198,13 +198,44 @@ export function getTargetInfo({ sourceToken, targetToken, item, activity = null 
         return info;
     }
 
-    // Calculate distance (center-to-center simplified)
-    const dx = targetToken.center.x - sourceToken.center.x;
-    const dy = targetToken.center.y - sourceToken.center.y;
-    const distPixels = Math.sqrt(dx * dx + dy * dy);
+    // Calculate distance using edge-to-edge grid-based measurement
+    // This matches how core's TargetSelectorMath calculates distance
     const gridDistance = canvas.grid.distance || 5;
     const gridSize = canvas.grid.size;
-    info.distance = (distPixels / gridSize) * gridDistance;
+
+    // Get token bounds in grid coordinates
+    const sourceBounds = {
+        left: Math.floor(sourceToken.document.x / gridSize),
+        right: Math.floor(sourceToken.document.x / gridSize) + (sourceToken.document.width || 1) - 1,
+        top: Math.floor(sourceToken.document.y / gridSize),
+        bottom: Math.floor(sourceToken.document.y / gridSize) + (sourceToken.document.height || 1) - 1
+    };
+    const targetBounds = {
+        left: Math.floor(targetToken.document.x / gridSize),
+        right: Math.floor(targetToken.document.x / gridSize) + (targetToken.document.width || 1) - 1,
+        top: Math.floor(targetToken.document.y / gridSize),
+        bottom: Math.floor(targetToken.document.y / gridSize) + (targetToken.document.height || 1) - 1
+    };
+
+    // Find minimum Chebyshev distance between any grid squares
+    let minGridDistance = Infinity;
+    for (let sx = sourceBounds.left; sx <= sourceBounds.right; sx++) {
+        for (let sy = sourceBounds.top; sy <= sourceBounds.bottom; sy++) {
+            for (let tx = targetBounds.left; tx <= targetBounds.right; tx++) {
+                for (let ty = targetBounds.top; ty <= targetBounds.bottom; ty++) {
+                    const dx = Math.abs(sx - tx);
+                    const dy = Math.abs(sy - ty);
+                    const squareDistance = Math.max(dx, dy);
+                    if (squareDistance < minGridDistance) {
+                        minGridDistance = squareDistance;
+                    }
+                }
+            }
+        }
+    }
+
+    // If tokens overlap (same token or adjacent), distance is 0
+    info.distance = minGridDistance === Infinity ? 0 : minGridDistance * gridDistance;
 
     // Check range
     const rangeInfo = calculateRange({ item, activity, actor: item?.actor });
@@ -257,13 +288,30 @@ export function calculateRange({ item, activity = null, actor = null }) {
     // Handle different range types
     if (typeof range === 'number') {
         rangeInfo.range = range;
+        // Assume feet if just a number, convert if scene uses different units
+        rangeInfo.range = _convertToSceneUnits(rangeInfo.range, 'feet');
         return rangeInfo;
     }
 
     if (typeof range === 'object') {
-        // Check value
+        // Check value - PF2e often stores range as "60 feet" string
         if (range.value) {
-            rangeInfo.range = range.value;
+            // Parse numeric value and units from string (e.g., "60 feet" -> 60, "feet")
+            if (typeof range.value === 'string') {
+                const numericMatch = range.value.match(/^(\d+)\s*(feet|foot|ft|meters?|m)?/i);
+                if (numericMatch) {
+                    rangeInfo.range = parseInt(numericMatch[1], 10);
+                    // Detect units from string
+                    const unitStr = numericMatch[2]?.toLowerCase() || '';
+                    if (unitStr.includes('meter') || unitStr === 'm') {
+                        rangeInfo.units = 'm';
+                    } else {
+                        rangeInfo.units = 'ft';
+                    }
+                }
+            } else if (typeof range.value === 'number') {
+                rangeInfo.range = range.value;
+            }
         }
 
         // Check increment (for ranged weapons)
@@ -277,6 +325,8 @@ export function calculateRange({ item, activity = null, actor = null }) {
         if (range.value === 'touch' || item.system?.traits?.value?.includes('touch')) {
             rangeInfo.isTouch = true;
             rangeInfo.range = canvas?.scene?.grid?.distance || 5;
+            // Touch uses scene units directly, no conversion needed
+            return rangeInfo;
         }
     }
 
@@ -289,7 +339,55 @@ export function calculateRange({ item, activity = null, actor = null }) {
         }
     }
 
+    // PF2e uses 5-foot squares. Convert range from feet to GRID SQUARES.
+    // This ensures the range indicator works correctly regardless of scene grid configuration.
+    if (rangeInfo.range && rangeInfo.units === 'ft') {
+        const feetPerSquare = 5; // PF2e standard
+        rangeInfo.rangeInSquares = rangeInfo.range / feetPerSquare;
+        rangeInfo.rangeInFeet = rangeInfo.range; // Keep original for display
+        rangeInfo.range = rangeInfo.rangeInSquares; // Return squares, not feet
+    }
+
     return rangeInfo;
+}
+
+/**
+ * Convert a range value to scene units.
+ * @param {number} value - The range value
+ * @param {string} fromUnits - Source units ('ft', 'feet', 'm', 'meters')
+ * @returns {number} Range in scene units
+ * @private
+ */
+function _convertToSceneUnits(value, fromUnits) {
+    if (!value || !canvas?.scene?.grid) return value;
+
+    const sceneUnits = canvas.scene.grid.units?.toLowerCase() || 'ft';
+    const fromFeet = fromUnits === 'ft' || fromUnits === 'feet' || fromUnits === 'foot';
+    const sceneIsFeet = sceneUnits.includes('ft') || sceneUnits.includes('feet') || sceneUnits.includes('foot');
+    const sceneIsMeters = sceneUnits.includes('m') || sceneUnits.includes('meter');
+
+    // If scene uses feet and range is in feet, no conversion
+    if (fromFeet && sceneIsFeet) {
+        return value;
+    }
+
+    // If scene uses meters and range is in meters, no conversion
+    if (!fromFeet && sceneIsMeters) {
+        return value;
+    }
+
+    // Convert feet to meters (1 foot = 0.3048 meters)
+    if (fromFeet && sceneIsMeters) {
+        return Math.round(value * 0.3048 * 10) / 10; // Round to 1 decimal
+    }
+
+    // Convert meters to feet (1 meter = 3.28084 feet)
+    if (!fromFeet && sceneIsFeet) {
+        return Math.round(value * 3.28084);
+    }
+
+    // Unknown units, assume compatible
+    return value;
 }
 
 // ========== Private Helper Functions ==========

@@ -84,15 +84,10 @@
             "Actions": "Actions",
             "FocusSpell": "Focus Spell",
             "SpellLevel": "Spell Level",
+            "SpellRank": "Spell Rank",
+            "Cantrip": "Cantrip",
             "Weapon": "Weapon",
-            "Feat": "Feat",
-            "Traits": {
-                "Attack": "Attack",
-                "Manipulate": "Manipulate",
-                "Concentrate": "Concentrate",
-                "Move": "Move",
-                "Exploration": "Exploration"
-            }
+            "Feat": "Feat"
         },
         "Info": {
             "SkillsHeader": "Skills",
@@ -147,6 +142,8 @@
             "ItemNotFound": "Item not found",
             "ItemCannotBeUsed": "Item cannot be used",
             "MacroNotFound": "Macro not found",
+            "ActorNotFound": "Actor not found",
+            "StrikeNotFound": "Strike is no longer available",
             "FailedToPerformRest": "Failed to perform rest",
             "FailedToRollInitiative": "Failed to roll initiative",
             "SlotOccupiedByTwoHandedWeapon": "This slot is occupied by a two-handed weapon",

@@ -27,19 +27,27 @@ export class Pf2eFilterContainer extends FilterContainer {
 
         if (!this.actor) return filters;
 
+        // Action economy tracking
+        // Get actions used this turn (stored as a flag, default to 0)
+        const actionsUsed = this.actor.getFlag(MODULE_ID, 'actionsUsed') ?? 0;
+        const totalActions = 3; // PF2e standard is 3 actions per turn
+        const actionsRemaining = Math.max(0, totalActions - actionsUsed);
+
         // Action cost filters (1-action, 2-action, 3-action)
-        // Use dots like spell slots, with green color matching dnd5e actions
+        // Pips show remaining actions - if you've used 1 action, all filters lose 1 pip
+        // alwaysShow: true means these filters always appear regardless of hotbar content
         const actionColor = '#2ecc71'; // Same green as dnd5e actions
-        
+
         filters.push({
             id: 'action-1',
             label: game.i18n.localize(`${MODULE_ID}.Filters.Action`),
             short: '1',
             classes: ['action-cost-button'],
             color: actionColor,
-            value: 1,
+            value: Math.min(actionsRemaining, 1), // 1 if any actions remain, 0 if none
             max: 1,
-            data: { actionCost: 1 }
+            data: { actionCost: 1 },
+            alwaysShow: true // Always show action filters
         });
 
         filters.push({
@@ -48,9 +56,10 @@ export class Pf2eFilterContainer extends FilterContainer {
             short: '2',
             classes: ['action-cost-button'],
             color: actionColor,
-            value: 2,
+            value: Math.min(actionsRemaining, 2), // 2 if 2+ remain, 1 if 1 remains, 0 if none
             max: 2,
-            data: { actionCost: 2 }
+            data: { actionCost: 2 },
+            alwaysShow: true
         });
 
         filters.push({
@@ -59,78 +68,13 @@ export class Pf2eFilterContainer extends FilterContainer {
             short: '3',
             classes: ['action-cost-button'],
             color: actionColor,
-            value: 3,
+            value: actionsRemaining, // Full remaining count (0-3)
             max: 3,
-            data: { actionCost: 3 }
+            data: { actionCost: 3 },
+            alwaysShow: true
         });
 
-        // Trait filters (common traits)
-        const commonTraits = ['attack', 'manipulate', 'concentrate', 'move', 'exploration'];
-        const traitColors = {
-            attack: '#ff6b6b',
-            manipulate: '#feca57',
-            concentrate: '#48dbfb',
-            move: '#ff9ff3',
-            exploration: '#54a0ff'
-        };
-
-        // Check which traits are actually present in actor's items
-        const actorTraits = new Set();
-        for (const item of this.actor.items) {
-            const traits = item.system?.traits?.value ?? [];
-            traits.forEach(trait => actorTraits.add(trait));
-        }
-
-        for (const trait of commonTraits) {
-            if (actorTraits.has(trait)) {
-                const traitKey = trait.charAt(0).toUpperCase() + trait.slice(1);
-                filters.push({
-                    id: `trait-${trait}`,
-                    label: game.i18n.localize(`${MODULE_ID}.Filters.Traits.${traitKey}`) || traitKey,
-                    symbol: 'fa-tag',
-                    classes: ['trait-button'],
-                    color: traitColors[trait] || '#95a5a6',
-                    data: { trait: trait }
-                });
-            }
-        }
-
-        // Focus spell filter
-        const hasFocusSpells = this.actor.items.some(item => 
-            item.type === 'spell' && item.system?.traits?.value?.includes('focus')
-        );
-        if (hasFocusSpells) {
-            filters.push({
-                id: 'focus-spell',
-                label: game.i18n.localize(`${MODULE_ID}.Filters.FocusSpell`),
-                symbol: 'fa-star',
-                classes: ['spell-type-button'],
-                color: '#9b59b6',
-                data: { isFocusSpell: true }
-            });
-        }
-
-        // Spell level filters (1-10)
-        const spellSlots = this.actor.system.spells;
-        for (let level = 1; level <= 10; level++) {
-            const spellLevelKey = `spell${level}`;
-            const spellLevel = spellSlots?.[spellLevelKey];
-
-            if (spellLevel?.max > 0) {
-                filters.push({
-                    id: 'spell',
-                    label: game.i18n.localize(`${MODULE_ID}.Filters.SpellLevel`),
-                    short: this._getRomanNumeral(level),
-                    classes: ['spell-level-button'],
-                    color: '#8e44ad',
-                    data: { level: level, value: spellLevel.value, max: spellLevel.max },
-                    value: spellLevel.value,
-                    max: spellLevel.max
-                });
-            }
-        }
-
-        // Item type filters
+        // Item type filters (after action pips, before spell filters)
         filters.push({
             id: 'weapon',
             label: game.i18n.localize(`${MODULE_ID}.Filters.Weapon`),
@@ -158,6 +102,59 @@ export class Pf2eFilterContainer extends FilterContainer {
             data: { itemType: 'feat' }
         });
 
+        // Focus spell filter - check focus points (Focus IS a shared pool, keeps pips)
+        const focusPool = this.actor.system?.resources?.focus;
+        if (focusPool?.max > 0) {
+            filters.push({
+                id: 'focus-spell',
+                label: game.i18n.localize(`${MODULE_ID}.Filters.FocusSpell`),
+                short: 'F',
+                classes: ['spell-level-button', 'focus-spell-button'],
+                color: '#9b59b6',
+                value: focusPool.value,
+                max: focusPool.max,
+                data: { isFocusSpell: true }
+            });
+        }
+
+        // Detect which spell ranks the actor has spells for
+        const spellRanks = new Set();
+        for (const item of this.actor.items) {
+            if (item.type !== 'spell') continue;
+            const rank = item.system?.level?.value ?? item.system?.rank ?? 0;
+            spellRanks.add(rank);
+        }
+
+        // Spell color - same blue as D&D5e spells
+        const spellColor = '#3497d9';
+
+        // Add cantrip filter if actor has cantrips
+        if (spellRanks.has(0)) {
+            filters.push({
+                id: 'spell',
+                label: game.i18n.localize(`${MODULE_ID}.Filters.Cantrip`),
+                centerLabel: 'C',
+                classes: ['spell-level-button', 'spell-cantrip-box'],
+                color: spellColor,
+                data: { level: 0 }
+            });
+        }
+
+        // Spell rank filters (1-10) - centered label, NO PIPS
+        // PF2e tracks uses per spell preparation, not per rank
+        for (let rank = 1; rank <= 10; rank++) {
+            if (!spellRanks.has(rank)) continue;
+
+            filters.push({
+                id: 'spell',
+                label: game.i18n.localize(`${MODULE_ID}.Filters.SpellRank`),
+                centerLabel: this._getRomanNumeral(rank),
+                classes: ['spell-level-button'],
+                color: spellColor,
+                data: { level: rank }
+            });
+        }
+
         return filters;
     }
 
@@ -183,24 +180,19 @@ export class Pf2eFilterContainer extends FilterContainer {
 
         const filterData = filter.data;
 
+        // Handle focus spell filtering
+        if (filterData.isFocusSpell) {
+            return cell.dataset.isFocusSpell === 'true';
+        }
+
         // Handle spell level filtering
         if (filterData.level !== undefined) {
             const itemType = cell.dataset.itemType;
             if (itemType !== 'spell') return false;
 
-            // Focus spell filter
-            if (filterData.isFocusSpell) {
-                return cell.dataset.isFocusSpell === 'true';
-            }
-
-            // Spell level filter
+            // Spell level/rank filter
             const cellLevel = parseInt(cell.dataset.level);
             return cellLevel === filterData.level;
-        }
-
-        // Handle focus spell filtering
-        if (filterData.isFocusSpell) {
-            return cell.dataset.isFocusSpell === 'true';
         }
 
         // Handle item type filtering
@@ -214,13 +206,6 @@ export class Pf2eFilterContainer extends FilterContainer {
             return cellActionCost === filterData.actionCost;
         }
 
-        // Handle trait filtering
-        if (filterData.trait) {
-            const cellTraits = cell.dataset.traits?.split(',') || [];
-            return cellTraits.includes(filterData.trait);
-        }
-
         return false;
     }
 }
-
