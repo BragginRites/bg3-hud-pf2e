@@ -1,6 +1,5 @@
-// Import SelectionDialog from core
-const SelectionDialogModule = await import('/modules/bg3-hud-core/scripts/components/ui/SelectionDialog.js');
-const SelectionDialog = SelectionDialogModule.SelectionDialog;
+// Import showSelectionDialog from core utilities
+const { showSelectionDialog } = await import('/modules/bg3-hud-core/scripts/utils/dialogs.js');
 
 const MODULE_ID = 'bg3-hud-pf2e';
 
@@ -11,7 +10,7 @@ const MODULE_ID = 'bg3-hud-pf2e';
 export async function createPf2ePassivesContainer() {
     // Import core PassivesContainer dynamically
     const { PassivesContainer } = await import('/modules/bg3-hud-core/scripts/components/containers/PassivesContainer.js');
-    
+
     /**
      * PF2e Passives Container
      * Displays passive features/feats for PF2e
@@ -24,7 +23,7 @@ export async function createPf2ePassivesContainer() {
          */
         getPassiveItems() {
             if (!this.actor) return [];
-            
+
             // Return only feat items that have NO action cost
             return this.actor.items.filter(item => {
                 if (item.type !== 'feat') return false;
@@ -45,7 +44,7 @@ export async function createPf2ePassivesContainer() {
             if (saved && Array.isArray(saved)) {
                 return new Set(saved);
             }
-            
+
             // Default: show nothing (user must configure)
             return new Set();
         }
@@ -75,22 +74,23 @@ export async function createPf2ePassivesContainer() {
                 selected: selected.has(feature.uuid)
             }));
 
-            // Create and show dialog
-            const dialog = new SelectionDialog({
+            // Show dialog using core utility
+            const selectedIds = await showSelectionDialog({
                 title: game.i18n.localize('bg3-hud-pf2e.PF2E.SelectPassiveFeats'),
-                items: items,
-                onSave: async (selectedIds) => {
-                    await this._saveSelectedPassives(selectedIds);
-                    // Don't call render() here - the actor flag update will trigger
-                    // a refresh via the updateActor hook, which will efficiently
-                    // update only the passives container
-                }
+                items: items
             });
 
-            await dialog.render();
+            // If user confirmed (not cancelled), save the selection
+            if (selectedIds !== null) {
+                await this._saveSelectedPassives(selectedIds);
+                // Don't call render() here - the actor flag update will trigger
+                // a refresh via the updateActor hook, which will efficiently
+                // update only the passives container
+            }
         }
     }
-    
+
     return Pf2ePassivesContainer;
 }
+
 

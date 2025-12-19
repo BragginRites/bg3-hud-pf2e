@@ -1,3 +1,9 @@
+## [0.1.6] - 2025-12-19
+### Changed
+- **DialogV2 Migration**: Updated dialogs to use core's new `DialogV2`-based utilities for consistent Foundry V13 styling:
+  - Passives selection dialog now uses `showSelectionDialog()`.
+  - Auto-populate configuration dialog now uses `showAutoPopulateConfigDialog()`.
+
 ## [0.1.5] - 2025-12-18
 ### Added
 - **Spell Rank Filters**: Replaced trait filters with spell rank filters (C, I, II, III, etc.) that show centered text labels. Cantrips use "C", ranks 1-10 use Roman numerals.

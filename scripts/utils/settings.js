@@ -19,15 +19,15 @@ const openAutoPopulateConfiguration = async () => {
     return;
   }
 
-  const { AutoPopulateConfigDialog } = await import(
-    '/modules/bg3-hud-core/scripts/components/ui/AutoPopulateConfigDialog.js'
+  const { showAutoPopulateConfigDialog } = await import(
+    '/modules/bg3-hud-core/scripts/utils/dialogs.js'
   );
 
-  const result = await new AutoPopulateConfigDialog({
+  const result = await showAutoPopulateConfigDialog({
     title: game.i18n.localize(`${MODULE_ID}.Settings.ConfigureAutoPopulateGrids`),
     choices,
     configuration: currentConfig,
-  }).render();
+  });
 
   if (result) {
     await game.settings.set(MODULE_ID, 'autoPopulateConfiguration', result);
