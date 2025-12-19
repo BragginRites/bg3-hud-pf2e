@@ -1,4 +1,4 @@
-## [0.1.6] - 2025-12-19
+## [0.1.6] - 2025-12-20
 ### Changed
 - **DialogV2 Migration**: Updated dialogs to use core's new `DialogV2`-based utilities for consistent Foundry V13 styling:
   - Passives selection dialog now uses `showSelectionDialog()`.
