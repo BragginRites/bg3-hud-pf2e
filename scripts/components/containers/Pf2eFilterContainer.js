@@ -121,14 +121,16 @@ export class Pf2eFilterContainer extends FilterContainer {
         const spellRanks = new Set();
         for (const item of this.actor.items) {
             if (item.type !== 'spell') continue;
-            const rank = item.system?.level?.value ?? item.system?.rank ?? 0;
+            // Cantrips have the 'cantrip' trait - treat as rank 0
+            const isCantrip = item.system?.traits?.value?.includes('cantrip');
+            const rank = isCantrip ? 0 : (item.system?.level?.value ?? item.system?.rank ?? 99);
             spellRanks.add(rank);
         }
 
         // Spell color - same blue as D&D5e spells
         const spellColor = '#3497d9';
 
-        // Add cantrip filter if actor has cantrips
+        // Add cantrip filter if actor has cantrips (standalone - not grouped)
         if (spellRanks.has(0)) {
             filters.push({
                 id: 'spell',
@@ -140,18 +142,32 @@ export class Pf2eFilterContainer extends FilterContainer {
             });
         }
 
+        // Build spell rank children for the group
+        const spellRankChildren = [];
+
         // Spell rank filters (1-10) - centered label, NO PIPS
-        // PF2e tracks uses per spell preparation, not per rank
+        // PF2e doesn't have spell slots - each prepared spell is cast once
         for (let rank = 1; rank <= 10; rank++) {
             if (!spellRanks.has(rank)) continue;
 
-            filters.push({
-                id: 'spell',
+            spellRankChildren.push({
+                id: `spell-${rank}`,
                 label: game.i18n.localize(`${MODULE_ID}.Filters.SpellRank`),
                 centerLabel: this._getRomanNumeral(rank),
                 classes: ['spell-level-button'],
                 color: spellColor,
                 data: { level: rank }
+            });
+        }
+
+        // Add spell ranks group if there are any spell ranks (icon only, no label)
+        if (spellRankChildren.length > 0) {
+            filters.push({
+                id: 'spell-ranks-group',
+                type: 'group',
+                symbol: 'fa-hat-wizard',
+                color: spellColor,
+                children: spellRankChildren
             });
         }
 

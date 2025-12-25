@@ -95,6 +95,7 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
     /**
      * Get items from actor that match selected types
      * For 'actions' type, gets weapon items (for strikes) + action items + feats with action costs
+     * For prepared spells, creates individual cells per preparation slot
      * For other types, uses item filtering
      * @param {Actor} actor - The actor
      * @param {Array<string>} selectedTypes - Selected type values
@@ -103,7 +104,10 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
     async getMatchingItems(actor, selectedTypes) {
         const items = [];
         const includeActions = selectedTypes.includes('actions');
+        const includeSpells = selectedTypes.includes('spell');
+        const includeFocusSpells = selectedTypes.includes('spell:focus');
         const addedUuids = new Set(); // Track to avoid duplicates
+        const addedPreparedSlots = new Set(); // Track prepared slots
 
         // Handle 'actions' type - gets items that produce actions
         if (includeActions) {
@@ -152,13 +156,119 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
             }
         }
 
-        // Handle other item types (spells, consumables, equipment, etc.)
-        for (const item of actor.items) {
-            if (!this._matchesType(item, selectedTypes)) {
-                continue;
-            }
+        // Handle spells - for prepared casters, create individual cells per slot
+        if (includeSpells || includeFocusSpells) {
+            for (const entry of actor.items) {
+                if (entry.type !== 'spellcastingEntry') continue;
 
-            if (item.type === 'spell' && !this._isSpellUsable(actor, item)) {
+                const entryData = entry.system ?? {};
+                const tradition = entryData.prepared?.value;
+
+                // PREPARED CASTERS: Consolidated approach - one cell per unique spell with uses counter
+                if (tradition === 'prepared' && includeSpells) {
+                    const slots = entryData.slots ?? {};
+                    const spellCounts = new Map(); // spellId -> {spell, total, remaining, entryId}
+
+                    // Count all preparations of each spell across all ranks
+                    for (let rank = 0; rank <= 10; rank++) {
+                        const slotKey = `slot${rank}`;
+                        const slotData = slots[slotKey];
+                        const preparedList = slotData?.prepared;
+                        if (!preparedList) continue;
+
+                        const preparedArray = Array.isArray(preparedList)
+                            ? preparedList
+                            : Object.values(preparedList);
+
+                        for (const slot of preparedArray) {
+                            if (!slot?.id) continue; // Empty slot
+
+                            const spell = actor.items.get(slot.id);
+                            if (!spell) continue;
+
+                            // Aggregate counts per unique spell
+                            if (!spellCounts.has(slot.id)) {
+                                spellCounts.set(slot.id, {
+                                    spell: spell,
+                                    total: 0,
+                                    remaining: 0,
+                                    entryId: entry.id
+                                });
+                            }
+                            const counts = spellCounts.get(slot.id);
+                            counts.total++;
+                            if (!slot.expended) {
+                                counts.remaining++;
+                            }
+                        }
+                    }
+
+                    // Create one cell per unique spell with uses counter
+                    for (const [spellId, data] of spellCounts) {
+                        if (addedUuids.has(data.spell.uuid)) continue;
+                        addedUuids.add(data.spell.uuid);
+
+                        // Cantrips have unlimited casts - don't track uses
+                        // PF2e uses the 'cantrip' trait to identify cantrips
+                        const isCantrip = data.spell.system?.traits?.value?.includes('cantrip');
+
+                        if (isCantrip) {
+                            items.push({
+                                type: 'Item',
+                                uuid: data.spell.uuid,
+                                name: data.spell.name,
+                                img: data.spell.img
+                            });
+                        } else {
+                            items.push({
+                                type: 'Item',
+                                uuid: data.spell.uuid,
+                                entryId: data.entryId,
+                                spellId: spellId,
+                                name: data.spell.name,
+                                img: data.spell.img,
+                                uses: {
+                                    value: data.remaining,
+                                    max: data.total
+                                },
+                                depleted: data.remaining === 0
+                            });
+                        }
+                    }
+                }
+
+                // FOCUS SPELLS: handled separately (use Focus Pool, not slots)
+                if (tradition === 'focus' && includeFocusSpells) {
+                    const collection = actor.spellcasting?.collections?.get(entry.id);
+                    if (collection) {
+                        for (const spell of collection) {
+                            if (addedUuids.has(spell.uuid)) continue;
+                            addedUuids.add(spell.uuid);
+                            items.push({ uuid: spell.uuid, type: 'Item', name: spell.name, img: spell.img });
+                        }
+                    }
+                }
+
+                // SPONTANEOUS/INNATE: One cell per spell (standard behavior)
+                if ((tradition === 'spontaneous' || tradition === 'innate') && includeSpells) {
+                    const collection = actor.spellcasting?.collections?.get(entry.id);
+                    if (collection) {
+                        for (const spell of collection) {
+                            if (addedUuids.has(spell.uuid)) continue;
+                            addedUuids.add(spell.uuid);
+                            items.push({ uuid: spell.uuid, type: 'Item', name: spell.name, img: spell.img });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Handle other item types (consumables, equipment, etc.) - NOT spells
+        for (const item of actor.items) {
+            // Skip spells - handled above
+            if (item.type === 'spell') continue;
+
+            if (!this._matchesType(item, selectedTypes)) {
                 continue;
             }
 

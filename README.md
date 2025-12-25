@@ -3,7 +3,7 @@
 ![Foundry Version](https://img.shields.io/badge/Foundry-v13-orange)
 [![Patreon](https://img.shields.io/badge/Patreon-Support-red?logo=patreon)](https://www.patreon.com/BragginRites)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20Coffee-blue?logo=ko-fi)](https://ko-fi.com/bragginrites)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Server-7289da?logo=discord)](https://discord.gg/H6CPcKMFu6)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Server-7289da?logo=discord)](https://discord.gg/8XEqK2fv2g)
 
 A Pathfinder 2e integration module for the BG3 Inspired HUD system. This module adapts the core HUD functionality for the Pathfinder 2e system, providing token-specific HUD elements for abilities, spells, and effects with a design inspired by Baldur's Gate 3.
 
@@ -67,4 +67,4 @@ This module is an independent fan creation, drawing inspiration from the excelle
 
 Found a bug? Have a feature request?
 * Submit issues via [GitHub Issues](https://github.com/BragginRites/bg3-hud-pf2e/issues).
-* Join the discussion on [Discord](https://discord.gg/H6CPcKMFu6).
+* Join the discussion on [Discord](https://discord.gg/8XEqK2fv2g).

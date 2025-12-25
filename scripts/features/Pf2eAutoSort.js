@@ -19,13 +19,17 @@ export class Pf2eAutoSort extends AutoSortFramework {
                     // Store basic data
                     item.name = itemData.name;
                     item.type = itemData.type;
-                    
+
                     // Build PF2e-specific sort data
+                    // Cantrips (with 'cantrip' trait) should sort as rank 0 (first)
+                    const isCantrip = itemData.system?.traits?.value?.includes('cantrip');
                     item.sortData = {
                         name: itemData.name,
                         type: itemData.type,
                         actionCost: this._getActionCost(itemData),
-                        spellLevel: itemData.type === 'spell' ? (itemData.system?.level?.value ?? 99) : 99,
+                        spellLevel: itemData.type === 'spell'
+                            ? (isCantrip ? 0 : (itemData.system?.level?.value ?? 99))
+                            : 99,
                         featType: itemData.type === 'feat' ? (itemData.system?.category ?? '') : ''
                     };
                 } else {
@@ -60,19 +64,19 @@ export class Pf2eAutoSort extends AutoSortFramework {
     async sortItems(items) {
         // Define PF2e item type order (first to last)
         const typeOrder = ['weapon', 'melee', 'action', 'feat', 'spell', 'consumable', 'ammo', 'equipment', 'armor', 'shield', 'backpack'];
-        
+
         items.sort((a, b) => {
             // First, sort by item type according to our defined order
             const typeIndexA = typeOrder.indexOf(a.type);
             const typeIndexB = typeOrder.indexOf(b.type);
-            
+
             // Handle different type priorities
             if (typeIndexA !== typeIndexB) {
                 if (typeIndexA === -1) return 1;  // Unknown types go to the end
                 if (typeIndexB === -1) return -1;
                 return typeIndexA - typeIndexB;
             }
-            
+
             // Then apply PF2e type-specific sorting
             switch (a.type) {
                 case 'spell':

@@ -1,3 +1,22 @@
+## [0.1.8] - 2025-12-25
+
+> 🎄 **Merry Christmas and Happy Holidays!** 🎄
+
+### Added
+- **Consolidated Prepared Spell Tracking**: Prepared spells now display as a single cell per unique spell with a uses counter showing remaining/total preparations (e.g., "2/3"). Casting consumes the first available non-expended slot. This replaces the previous per-slot tracking system for a cleaner, more intuitive experience similar to D&D 5e.
+- **Dynamic Uses Counter Updates**: Spell uses counters now update in real-time when spells are cast, without requiring a full hotbar re-render.
+- **Spell Rank Grouping**: Spell rank filters (I-X) are now grouped under an expandable "Spell Ranks" button to reduce filter bar clutter. Cantrips and Focus remain standalone.
+
+### Fixed
+- **Cantrip Detection**: Fixed cantrips to use proper trait-based detection (`cantrip` trait) instead of spell rank. Cantrips now correctly show as unlimited-use spells without a uses counter.
+- **Cantrip Sorting**: Cantrips now properly sort as rank 0 (first in spell lists) instead of being mixed with leveled spells.
+- **Cantrip Filtering**: Fixed cantrip filter to correctly identify all cantrips using the `cantrip` trait.
+- **Depleted Visual State**: Spell depletion now only desaturates the icon image, not the entire cell. The uses counter remains visible and turns red when depleted, making it clear when spells are exhausted.
+- **Heightened Spell Slots**: Fixed issue where heightened spells consumed the wrong spell slot (Issue #8). Spells prepared at higher ranks now correctly consume the heightened slot level instead of the base spell level.
+
+### Changed
+- **Discord Link Updated**: Updated community Discord invite link.
+
 ## [0.1.7] - 2025-12-21
 ### Changed
 - **Dialog Synchronization**: All dialogs are now synchronized to use consistent `DialogV2` styling and behavior (Issue #11).

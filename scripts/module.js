@@ -88,6 +88,69 @@ Hooks.on('bg3HudReady', async (BG3HUD_API) => {
 
     console.log('BG3 HUD PF2e | Registration complete');
 
+    // Register hook for spellcasting entry updates to refresh uses counter and depleted state
+    Hooks.on('updateItem', (item, changes, options, userId) => {
+        // Only handle spellcasting entries
+        if (item.type !== 'spellcastingEntry') return;
+
+        const actor = item.parent;
+        if (!actor) return;
+
+        // Get the hotbar app from ui
+        const hotbarApp = ui.BG3HUD_APP;
+        if (!hotbarApp?.currentActor?.id || hotbarApp.currentActor.id !== actor.id) return;
+
+        const entrySlots = item.system?.slots ?? {};
+
+        // Find all spell cells for this spellcasting entry
+        const spellCells = document.querySelectorAll(`.bg3-grid-cell[data-spell-entry-id="${item.id}"]`);
+
+        for (const cellElement of spellCells) {
+            const spellId = cellElement.dataset.spellId;
+            if (!spellId) continue;
+
+            // Count total and remaining uses for this spell
+            let total = 0;
+            let remaining = 0;
+
+            for (let rank = 0; rank <= 10; rank++) {
+                const slotKey = `slot${rank}`;
+                const slotData = entrySlots[slotKey];
+                const preparedList = slotData?.prepared;
+                if (!preparedList) continue;
+
+                const preparedArray = Array.isArray(preparedList) ? preparedList : Object.values(preparedList);
+                for (const prep of preparedArray) {
+                    if (prep?.id === spellId) {
+                        total++;
+                        if (!prep.expended) remaining++;
+                    }
+                }
+            }
+
+            // Update uses counter display (core renders it with class 'hotbar-item-uses')
+            const usesElement = cellElement.querySelector('.hotbar-item-uses');
+            if (usesElement) {
+                usesElement.textContent = remaining.toString();
+                // Update depleted class on uses element
+                if (remaining === 0) {
+                    usesElement.classList.add('depleted');
+                } else {
+                    usesElement.classList.remove('depleted');
+                }
+            }
+
+            // Update depleted state - only apply to image, not whole cell
+            // This ensures the uses counter remains visible
+            const img = cellElement.querySelector('.hotbar-item');
+            if (total > 0 && remaining === 0) {
+                if (img) img.classList.add('depleted');
+            } else {
+                if (img) img.classList.remove('depleted');
+            }
+        }
+    });
+
     // Signal that adapter registration is complete
     Hooks.call('bg3HudRegistrationComplete');
 });
@@ -378,8 +441,37 @@ class Pf2eAdapter {
                 const entry = entryId ? item.actor.items.get(entryId) : null;
 
                 if (entry && typeof entry.cast === 'function') {
-                    // Get the spell's rank (level in PF2e terminology)
-                    const rank = item.system?.level?.value ?? item.rank ?? 1;
+                    const tradition = entry.system?.prepared?.value;
+
+                    // For prepared casters, find the FIRST non-expended slot
+                    if (tradition === 'prepared') {
+                        const slots = entry.system?.slots ?? {};
+                        for (let rank = 0; rank <= 10; rank++) {
+                            const slotData = slots[`slot${rank}`];
+                            const preparedList = slotData?.prepared;
+                            if (!preparedList) continue;
+
+                            const preparedArray = Array.isArray(preparedList)
+                                ? preparedList
+                                : Object.values(preparedList);
+
+                            for (let slotId = 0; slotId < preparedArray.length; slotId++) {
+                                const prep = preparedArray[slotId];
+                                if (prep?.id === item.id && !prep.expended) {
+                                    // Cast this specific slot
+                                    console.log('PF2e Adapter | Casting prepared spell at rank', rank, 'slot', slotId);
+                                    await entry.cast(item, { rank, slotId, consume: true });
+                                    return;
+                                }
+                            }
+                        }
+                        // All slots expended
+                        ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.NoSlotsRemaining`));
+                        return;
+                    }
+
+                    // Spontaneous/innate: just cast at the spell's rank
+                    const rank = item.rank;
                     await entry.cast(item, { rank, consume: true });
                     return;
                 }
@@ -417,6 +509,67 @@ class Pf2eAdapter {
             ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ItemCannotBeUsed`));
         } catch (error) {
             console.error('[bg3-hud-pf2e] Failed to use item', { uuid: item.uuid, name: item.name }, error);
+            ui.notifications.error(game.i18n.localize(`${MODULE_ID}.Notifications.ItemCannotBeUsed`));
+        }
+    }
+
+    /**
+     * Use a prepared spell from a specific slot
+     * This allows individual prepared spell instances to be cast and expended
+     * @param {Object} data - PreparedSpell cell data (entryId, groupId, slotId, spellId, uuid)
+     * @param {MouseEvent} event - The triggering event
+     * @private
+     */
+    async _usePreparedSpell(data, event) {
+        // Note: data.uuid is now a SYNTHETIC slot identifier (pf2e.prepared.{entryId}.{rank}.{slotId})
+        // data.spellUuid contains the real spell UUID for lookups
+        const { entryId, groupId, slotId, spellId, spellUuid } = data;
+
+        // Get actor from the spell's real UUID (embedded items include actor path)
+        let actor = null;
+        let spell = null;
+
+        // Try to get spell and actor from real spell UUID
+        if (spellUuid) {
+            spell = await fromUuid(spellUuid);
+            actor = spell?.actor;
+        }
+
+        // Fallback to hotbar's current actor if spellUuid didn't work
+        if (!actor) {
+            const hotbarApp = globalThis.ui?.BG3HUD_APP;
+            actor = hotbarApp?.currentActor;
+        }
+
+        if (!actor) {
+            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.NoActorSelected`));
+            return;
+        }
+
+        // Get spell and entry from actor (spell might already be set from UUID)
+        if (!spell) {
+            spell = actor.items.get(spellId);
+        }
+        const entry = actor.items.get(entryId);
+
+        if (!spell || !entry) {
+            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ItemNotFound`));
+            return;
+        }
+
+        console.log('PF2e Adapter | Using prepared spell:', spell.name, 'entryId:', entryId, 'rank:', groupId, 'slotId:', slotId);
+
+        try {
+            if (typeof entry.cast === 'function') {
+                // Cast with specific slotId to mark that exact slot as expended
+                await entry.cast(spell, { rank: groupId, slotId: slotId, consume: true });
+            } else {
+                // Fallback if cast method not available
+                console.warn('PF2e Adapter | Entry has no cast method, falling back to toMessage');
+                await spell.toMessage?.(event, { create: true });
+            }
+        } catch (error) {
+            console.error('[bg3-hud-pf2e] Failed to cast prepared spell', { spell: spell.name, error });
             ui.notifications.error(game.i18n.localize(`${MODULE_ID}.Notifications.ItemCannotBeUsed`));
         }
     }
@@ -512,6 +665,165 @@ class Pf2eAdapter {
     }
 
     /**
+     * Transform a PF2e item to cell data format
+     * Extracts all relevant data including uses, quantity, and depletion state
+     * For prepared spells, returns PreparedSpell type with slot tracking
+     * @param {Item} item - The item to transform
+     * @returns {Promise<Object>} Cell data object
+     */
+    async transformItemToCellData(item) {
+        if (!item) {
+            console.warn('PF2e Adapter | transformItemToCellData: No item provided');
+            return null;
+        }
+
+        // SPELLS: Handle specially to support per-slot tracking
+        if (item.type === 'spell') {
+            return this._transformSpellToCellData(item);
+        }
+
+        const cellData = {
+            uuid: item.uuid,
+            name: item.name,
+            img: item.img,
+            type: 'Item'
+        };
+
+        // Extract quantity (PF2e stores this in system.quantity)
+        if (item.system?.quantity) {
+            cellData.quantity = item.system.quantity;
+        }
+
+        // Extract uses (PF2e stores this in system.uses or system.frequency)
+        if (item.system?.uses) {
+            const maxUses = parseInt(item.system.uses.max) || 0;
+            if (maxUses > 0) {
+                const value = parseInt(item.system.uses.value) || 0;
+                cellData.uses = {
+                    value: value,
+                    max: maxUses
+                };
+            }
+        } else if (item.system?.frequency) {
+            // Handle frequency-based uses (feats with limited uses per day/etc.)
+            const maxUses = parseInt(item.system.frequency.max) || 0;
+            if (maxUses > 0) {
+                const value = parseInt(item.system.frequency.value) || 0;
+                cellData.uses = {
+                    value: value,
+                    max: maxUses
+                };
+            }
+        }
+
+        return cellData;
+    }
+
+    /**
+     * Transform a spell to cell data, handling prepared spells specially
+     * @param {Item} spell - The spell item
+     * @returns {Object} Cell data (PreparedSpell or Item type)
+     * @private
+     */
+    _transformSpellToCellData(spell) {
+        const actor = spell.actor;
+        if (!actor) {
+            return {
+                uuid: spell.uuid,
+                name: spell.name,
+                img: spell.img,
+                type: 'Item'
+            };
+        }
+
+        // Check for focus spell first
+        const isFocusSpell = spell.system?.traits?.value?.includes('focus');
+        if (isFocusSpell) {
+            const focusPool = actor.system?.resources?.focus;
+            return {
+                uuid: spell.uuid,
+                name: spell.name,
+                img: spell.img,
+                type: 'Item',
+                depleted: focusPool?.value === 0
+            };
+        }
+
+        // Check if this is a prepared spell
+        const entryId = spell.system?.location?.value;
+        const entry = entryId ? actor.items.get(entryId) : null;
+
+        if (entry?.type === 'spellcastingEntry') {
+            const tradition = entry.system?.prepared?.value;
+
+            // PREPARED CASTERS: Count total preparations and remaining (non-expended) casts
+            if (tradition === 'prepared') {
+                // Cantrips have unlimited casts - don't track uses
+                // PF2e uses the 'cantrip' trait to identify cantrips
+                const isCantrip = spell.system?.traits?.value?.includes('cantrip');
+                if (isCantrip) {
+                    return {
+                        type: 'Item',
+                        uuid: spell.uuid,
+                        name: spell.name,
+                        img: spell.img
+                    };
+                }
+
+                const slots = entry.system?.slots ?? {};
+                let totalPreps = 0;
+                let remainingCasts = 0;
+
+                // Count all preparations of this spell across all ranks
+                for (let rank = 0; rank <= 10; rank++) {
+                    const slotKey = `slot${rank}`;
+                    const slotData = slots[slotKey];
+                    const preparedList = slotData?.prepared;
+                    if (!preparedList) continue;
+
+                    const preparedArray = Array.isArray(preparedList)
+                        ? preparedList
+                        : Object.values(preparedList);
+
+                    for (const prep of preparedArray) {
+                        if (prep?.id === spell.id) {
+                            totalPreps++;
+                            if (!prep.expended) {
+                                remainingCasts++;
+                            }
+                        }
+                    }
+                }
+
+                // Return Item type with uses counter (consolidated approach)
+                if (totalPreps > 0) {
+                    return {
+                        type: 'Item',
+                        uuid: spell.uuid,
+                        entryId: entry.id,
+                        spellId: spell.id,
+                        name: spell.name,
+                        img: spell.img,
+                        uses: {
+                            value: remainingCasts,
+                            max: totalPreps
+                        },
+                        depleted: remainingCasts === 0
+                    };
+                }
+            }
+        }
+
+        // Fallback: spontaneous, innate, or unprepared spells - use Item type
+        return {
+            uuid: spell.uuid,
+            name: spell.name,
+            img: spell.img,
+            type: 'Item'
+        };
+    }
+
+    /**
      * Auto-populate passives on token creation
      * Selects all feats that have no actions
      * @param {Token} token - The newly created token
@@ -546,7 +858,10 @@ class Pf2eAdapter {
      * @param {Object} cellData - The cell's data object
      */
     async decorateCellElement(cellElement, cellData) {
-        if (!cellData || !cellData.uuid) return;
+        if (!cellData) return;
+
+        // Standard Item handling
+        if (!cellData.uuid) return;
 
         // Get the item from UUID
         const item = await fromUuid(cellData.uuid);
@@ -583,19 +898,36 @@ class Pf2eAdapter {
         if (item.type === 'spell') {
             const actor = item.actor;
             const spellId = item.id;
+            cellElement.dataset.spellId = spellId;
             let preparedRank = null;
+            let totalPreps = 0;
+            let expendedPreps = 0;
 
             // Check if it's a focus spell (use base rank)
             const isFocusSpell = item.system?.traits?.value?.includes('focus');
             if (isFocusSpell) {
                 cellElement.dataset.isFocusSpell = 'true';
                 cellElement.dataset.level = item.system?.level?.value ?? 0;
+
+                // Focus Pool Check
+                const focusPool = actor.system?.resources?.focus;
+                if (focusPool && typeof focusPool.value === 'number') {
+                    if (focusPool.value === 0) {
+                        cellElement.dataset.expended = 'true';
+                        cellElement.classList.add('expended');
+                    }
+                }
                 return;
             }
 
             // For prepared spells, find which slot rank the spell is prepared in
+            // and check if it has been expended
             if (actor) {
                 const entryId = item.system?.location?.value;
+                if (entryId) {
+                    cellElement.dataset.spellEntryId = entryId;
+                }
+
                 const entry = entryId ? actor.items.get(entryId) : null;
 
                 if (entry?.type === 'spellcastingEntry') {
@@ -615,21 +947,34 @@ class Pf2eAdapter {
                                 ? preparedList
                                 : Object.values(preparedList);
 
-                            // Check if this spell is prepared in this slot
+                            // Check all preparations of this spell
                             for (const prep of preparedArray) {
                                 if (prep?.id === spellId) {
-                                    preparedRank = rank;
-                                    break;
+                                    if (preparedRank === null) preparedRank = rank;
+                                    totalPreps++;
+                                    if (prep.expended === true) {
+                                        expendedPreps++;
+                                    }
                                 }
                             }
-                            if (preparedRank !== null) break;
                         }
                     }
                 }
             }
 
-            // Use preparation rank if found, otherwise fall back to base rank
-            cellElement.dataset.level = preparedRank ?? item.system?.level?.value ?? 0;
+            // Only mark depleted on image if all preparations are expended
+            // Don't apply expended to cell - that would desaturate the uses counter too
+            if (totalPreps > 0 && totalPreps === expendedPreps) {
+                const img = cellElement.querySelector('.hotbar-item');
+                if (img) img.classList.add('depleted');
+            }
+
+
+
+            // Cantrips (with 'cantrip' trait) should be level 0 for filtering
+            const isCantrip = item.system?.traits?.value?.includes('cantrip');
+            // Use preparation rank if found, cantrip = 0, otherwise fall back to base rank
+            cellElement.dataset.level = isCantrip ? 0 : (preparedRank ?? item.system?.level?.value ?? 0);
         }
     }
 
@@ -645,45 +990,6 @@ class Pf2eAdapter {
         };
     }
 
-    /**
-     * Transform a PF2e item to cell data format
-     * Extracts all relevant data including uses and quantity
-     * @param {Item} item - The item to transform
-     * @returns {Promise<Object>} Cell data object
-     */
-    async transformItemToCellData(item) {
-        if (!item) {
-            console.warn('Pf2e Adapter | transformItemToCellData: No item provided');
-            return null;
-        }
-
-        const cellData = {
-            uuid: item.uuid,
-            name: item.name,
-            img: item.img,
-            type: 'Item'
-        };
-
-        // Extract quantity (PF2e stores this in system.quantity)
-        if (item.system?.quantity) {
-            cellData.quantity = item.system.quantity;
-        }
-
-        // Extract uses (PF2e stores this in system.uses)
-        if (item.system?.uses) {
-            const maxUses = parseInt(item.system.uses.max) || 0;
-            if (maxUses > 0) {
-                const value = parseInt(item.system.uses.value) || 0;
-
-                cellData.uses = {
-                    value: value,
-                    max: maxUses
-                };
-            }
-        }
-
-        return cellData;
-    }
 
     /**
      * Raise Shield via PF2e action macro
@@ -878,6 +1184,66 @@ class Pf2eAdapter {
         }
 
         await ChatMessage.create(chatData);
+    }
+
+    /**
+     * Update cell depletion states based on actor changes
+     * Called by core's UpdateCoordinator on any actor update
+     * @param {Actor} actor - The actor that changed
+     * @param {Object} changes - The changes object from updateActor hook
+     */
+    updateCellDepletionStates(actor, changes) {
+        // Only process if focus pool actually changed
+        if (changes?.system?.resources?.focus === undefined) return;
+
+        const focusPool = actor.system?.resources?.focus;
+        if (!focusPool) return;
+
+        const hotbarApp = ui.BG3HUD_APP;
+        if (!hotbarApp?.components) return;
+
+        // Use requestAnimationFrame to avoid flashing by syncing with render cycle
+        requestAnimationFrame(() => {
+            // Collect focus spell cells from hotbar only (skip quickAccess)
+            const allCells = [];
+            for (const containerKey of ['hotbar', 'weaponSets']) {
+                const container = hotbarApp.components[containerKey];
+                if (container?.gridContainers) {
+                    for (const grid of container.gridContainers) {
+                        if (grid?.cells) {
+                            allCells.push(...grid.cells);
+                        }
+                    }
+                }
+            }
+
+            for (const cell of allCells) {
+                // Defensive: ensure cell, data, and element exist and are stable
+                if (!cell?.data?.uuid) continue;
+                if (!cell?.element) continue;
+                if (!cell.element.isConnected) continue; // Element not in DOM
+
+                // Only process focus spells
+                if (cell.element.dataset?.isFocusSpell !== 'true') continue;
+
+                const isDepleted = focusPool?.value === 0;
+
+                // Update data for persistence
+                cell.data.depleted = isDepleted;
+
+                // Update DOM
+                const img = cell.element.querySelector('.hotbar-item');
+                if (isDepleted) {
+                    cell.element.dataset.expended = 'true';
+                    cell.element.classList.add('expended');
+                    if (img) img.classList.add('depleted');
+                } else {
+                    delete cell.element.dataset.expended;
+                    cell.element.classList.remove('expended');
+                    if (img) img.classList.remove('depleted');
+                }
+            }
+        });
     }
 }
 

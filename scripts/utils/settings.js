@@ -73,7 +73,8 @@ export function registerSettings() {
     scope: 'client',
     config: false,
     type: Boolean,
-    default: false
+    default: true,
+    onChange: () => ui.BG3HUD_APP?.updateDisplaySettings()
   });
 
   // Display item uses setting
@@ -83,7 +84,8 @@ export function registerSettings() {
     scope: 'client',
     config: false,
     type: Boolean,
-    default: true
+    default: true,
+    onChange: () => ui.BG3HUD_APP?.updateDisplaySettings()
   });
 
   // Show health overlay setting
