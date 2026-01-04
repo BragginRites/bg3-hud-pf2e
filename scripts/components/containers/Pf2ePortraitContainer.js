@@ -359,10 +359,9 @@ export async function createPf2ePortraitContainer() {
             const portraitImageContainer = this.createElement('div', ['portrait-image-container']);
             const portraitImageSubContainer = this.createElement('div', ['portrait-image-subcontainer']);
 
-            // Portrait image
-            const img = this.createElement('img', ['portrait-image']);
-            img.src = imageSrc;
-            img.alt = this.actor?.name || 'Portrait';
+            // Portrait image/video (use core's _createMediaElement for webm support)
+            const mediaElement = this._createMediaElement(imageSrc, this.actor?.name || 'Portrait');
+            const isVideoPortrait = mediaElement.tagName.toLowerCase() === 'video';
 
             // Health overlay (red damage indicator) - check setting
             const showHealthOverlay = game.settings.get('bg3-hud-pf2e', 'showHealthOverlay') ?? true;
@@ -372,16 +371,18 @@ export async function createPf2ePortraitContainer() {
                 damageOverlay.style.setProperty('--damage-percent', health.damage);
                 healthOverlay.appendChild(damageOverlay);
 
-                // Apply alpha mask so overlays only affect non-transparent pixels of the image
-                portraitImageSubContainer.setAttribute('data-bend-mode', 'true');
-                portraitImageSubContainer.style.setProperty('--bend-img', `url("${img.src}")`);
-                this.element.classList.add('use-bend-mask');
+                // Apply alpha mask for images only (not compatible with video)
+                if (!isVideoPortrait) {
+                    portraitImageSubContainer.setAttribute('data-bend-mode', 'true');
+                    portraitImageSubContainer.style.setProperty('--bend-img', `url("${mediaElement.src}")`);
+                    this.element.classList.add('use-bend-mask');
+                }
 
                 portraitImageSubContainer.appendChild(healthOverlay);
             }
 
             // Assemble portrait image structure
-            portraitImageSubContainer.appendChild(img);
+            portraitImageSubContainer.appendChild(mediaElement);
             portraitImageContainer.appendChild(portraitImageSubContainer);
 
             // Add portrait data badges (from core PortraitContainer)
@@ -428,8 +429,8 @@ export async function createPf2ePortraitContainer() {
                 // Add overlay if setting is enabled and it doesn't exist
                 const portraitImageSubContainer = this.element.querySelector('.portrait-image-subcontainer');
                 if (portraitImageSubContainer) {
-                    const img = portraitImageSubContainer.querySelector('.portrait-image');
-                    if (img) {
+                    const mediaElement = portraitImageSubContainer.querySelector('.portrait-image');
+                    if (mediaElement) {
                         const healthOverlay = this.createElement('div', ['health-overlay']);
                         const newDamageOverlay = this.createElement('div', ['damage-overlay']);
                         newDamageOverlay.style.setProperty('--damage-percent', health.damage);
@@ -437,10 +438,11 @@ export async function createPf2ePortraitContainer() {
 
                         portraitImageSubContainer.appendChild(healthOverlay);
 
-                        // Apply alpha mask if not already applied
-                        if (!portraitImageSubContainer.hasAttribute('data-bend-mode')) {
+                        // Apply alpha mask if not already applied (images only, not video)
+                        const isVideo = mediaElement.tagName.toLowerCase() === 'video';
+                        if (!isVideo && !portraitImageSubContainer.hasAttribute('data-bend-mode')) {
                             portraitImageSubContainer.setAttribute('data-bend-mode', 'true');
-                            portraitImageSubContainer.style.setProperty('--bend-img', `url("${img.src}")`);
+                            portraitImageSubContainer.style.setProperty('--bend-img', `url("${mediaElement.src}")`);
                             this.element.classList.add('use-bend-mask');
                         }
                     }
