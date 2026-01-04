@@ -2,7 +2,7 @@
   "id": "bg3-hud-pf2e",
   "title": "BG3 Inspired HUD - PF2e",
   "description": "A PF2e integration module for the BG3 Inspired HUD. This module adapts the core HUD functionality for the Pathfinder 2e system, providing token-specific HUD elements for abilities, spells, and effects.",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "authors": [
     {
       "name": "BragginRites",
@@ -33,7 +33,7 @@
         "id": "bg3-hud-core",
         "type": "module",
         "compatibility": {
-          "minimum": "0.1.10"
+          "minimum": "0.1.11"
         }
       }
     ],
@@ -51,7 +51,7 @@
   "persistentStorage": true,
   "url": "https://github.com/BragginRites/bg3-hud-pf2e",
   "manifest": "https://github.com/BragginRites/bg3-hud-pf2e/releases/latest/download/module.json",
-  "download": "https://github.com/BragginRites/bg3-hud-pf2e/releases/download/0.1.8/bg3-hud-pf2e.zip",
+  "download": "https://github.com/BragginRites/bg3-hud-pf2e/releases/download/0.1.9/bg3-hud-pf2e.zip",
   "readme": "README.md",
   "bugs": "https://github.com/BragginRites/bg3-hud-pf2e/issues"
 }

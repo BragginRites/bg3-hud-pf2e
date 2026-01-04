@@ -1,3 +1,8 @@
+## [0.1.9] - 2026-01-04
+
+### Added
+- **Animated Portrait Support**: Uses core's `_createMediaElement()` for WEBM/MP4 animated token support. Health overlay bend mask skipped for video (incompatible technique).
+
 ## [0.1.8] - 2025-12-25
 
 > 🎄 **Merry Christmas and Happy Holidays!** 🎄
