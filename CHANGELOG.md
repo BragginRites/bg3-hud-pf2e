@@ -1,3 +1,10 @@
+## [0.2.0] - 2026-01-05
+
+### Fixed
+- **Touch Range**: Touch range now returns 1 grid square instead of feet.
+- **Numeric Range Conversion**: Range values now correctly convert from feet to grid squares.
+- **Range Comparison**: Fixed unit mismatch when comparing target distance to range requirements.
+
 ## [0.1.9] - 2026-01-04
 
 ### Added

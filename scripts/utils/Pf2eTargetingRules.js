@@ -237,9 +237,10 @@ export function getTargetInfo({ sourceToken, targetToken, item, activity = null 
     // If tokens overlap (same token or adjacent), distance is 0
     info.distance = minGridDistance === Infinity ? 0 : minGridDistance * gridDistance;
 
-    // Check range
+    // Check range - rangeInfo.range is in grid squares, convert distance to squares for comparison
     const rangeInfo = calculateRange({ item, activity, actor: item?.actor });
-    if (rangeInfo.range && info.distance > rangeInfo.range) {
+    const distanceInSquares = info.distance / gridDistance;
+    if (rangeInfo.range && distanceInSquares > rangeInfo.range) {
         info.inRange = false;
     }
 
@@ -287,9 +288,10 @@ export function calculateRange({ item, activity = null, actor = null }) {
 
     // Handle different range types
     if (typeof range === 'number') {
-        rangeInfo.range = range;
-        // Assume feet if just a number, convert if scene uses different units
-        rangeInfo.range = _convertToSceneUnits(rangeInfo.range, 'feet');
+        // Convert feet to grid squares
+        const feetPerSquare = 5; // PF2e standard
+        rangeInfo.rangeInFeet = range;
+        rangeInfo.range = range / feetPerSquare;
         return rangeInfo;
     }
 
@@ -324,8 +326,9 @@ export function calculateRange({ item, activity = null, actor = null }) {
         // Touch range
         if (range.value === 'touch' || item.system?.traits?.value?.includes('touch')) {
             rangeInfo.isTouch = true;
-            rangeInfo.range = canvas?.scene?.grid?.distance || 5;
-            // Touch uses scene units directly, no conversion needed
+            // Touch range = 1 grid square (adjacent)
+            rangeInfo.range = 1;
+            rangeInfo.rangeInFeet = canvas?.scene?.grid?.distance || 5;
             return rangeInfo;
         }
     }
