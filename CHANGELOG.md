@@ -1,4 +1,11 @@
-## [0.2.0] - 2026-01-05
+## [0.2.1] - 2026-01-10
+
+### Changed
+- **Core Updates**: Updated to support BG3 HUD Core 0.2.1 features:
+  - **GM Portrait Data Override**: GMs can now enforce a uniform portrait data configuration for all players.
+  - **Show/Hide Filter Icons**: Support for toggling filter icon visibility.
+  - **Portrait Alignment**: Improved portrait container alignment.
+- **Dependency Update**: Updated core dependency to version 0.2.1.
 
 ### Fixed
 - **Touch Range**: Touch range now returns 1 grid square instead of feet.
