@@ -1,3 +1,9 @@
+## [0.2.2] - 2026-01-14
+
+### Changed
+- **Dependency Update**: Updated core dependency to version 0.2.2, which includes:
+  - Fix for portrait data badge colors resetting on HP change.
+
 ## [0.2.1] - 2026-01-10
 
 ### Changed
