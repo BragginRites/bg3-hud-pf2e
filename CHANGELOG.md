@@ -1,3 +1,11 @@
+## [0.2.3] - 2026-01-28
+
+### Changed
+- **Dependency Update**: Updated core dependency to version 0.2.3, which includes:
+  - Fix for target selector min targets not updating when max is reduced (Issue #23).
+  - Fix for "Hide When BG3 HUD Visible" setting not working correctly (Issue #8).
+- **Discord Link Updated**: Updated community Discord invite link.
+
 ## [0.2.2] - 2026-01-14
 
 ### Changed
