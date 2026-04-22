@@ -1,3 +1,14 @@
+## [0.2.4] - 2026-04-22
+
+### Added
+- **Dynamic Skill Support**: Refactored skill rendering to dynamically pull from the actor's skills record, enabling support for all skills including **Lore** skills.
+- **Proficiency Borders**: Swapped proficiency icons/letters for colored borders (Blue=Trained, Gold=Expert, Purple=Master, Red=Legendary).
+- **Ability Scores**: Added display of raw ability scores alongside modifiers.
+
+### Fixed
+- **Proficiency Layout**: Refactored the proficiency display to use the core border-based Denotation system for a cleaner UI.
+
+
 ## [0.2.3] - 2026-01-28
 
 ### Changed
