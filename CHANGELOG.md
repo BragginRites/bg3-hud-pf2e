@@ -1,3 +1,14 @@
+## [0.2.5] - 2026-04-24
+
+### Changed
+- **Info Panel Redesign**: Complete overhaul of the character info panel with a minimalist, at-a-glance layout.
+  - Reordered layout: Ability Scores -> Saving Throws -> Skills.
+  - Horizontal Saving Throws: Redesigned saves into a horizontal row with d20 modifier overlays.
+  - Simplified skills grid into a 3-column layout.
+  - Proficiency indicators using color-coded d20 icons (Blue for Trained, Purple for Expert, Gold for Master).
+  - **UI Localization**: Updated localization for settings, context menus, and tooltips, and others.
+
+
 ## [0.2.4] - 2026-04-22
 
 ### Added
