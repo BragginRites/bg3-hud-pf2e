@@ -179,6 +179,54 @@ class Pf2eAdapter {
     }
 
     /**
+     * PF2e sheet drag: strike rows use `type: Action` with actor UUID + action index.
+     * @param {object} dragData Parsed `text/plain` transfer JSON
+     * @returns {Promise<null|{ document: foundry.documents.Item, type: 'Item', augment: Record<string, unknown> }>}
+     */
+    async resolveExternalDragData(dragData /* , event */) {
+        if (dragData.type !== 'Action' || dragData.actorUUID === undefined) return null;
+        const actor = await fromUuid(dragData.actorUUID);
+        if (!actor) return null;
+        const actionIndex = dragData.index;
+        const strike = actor.system?.actions?.[actionIndex];
+        if (!strike?.item) return null;
+        return {
+            document: strike.item,
+            type: 'Item',
+            augment: {
+                pf2eActionIndex: actionIndex,
+                pf2eStrikeSlug: strike.slug
+            }
+        };
+    }
+
+    /**
+     * @param {Record<string, unknown>} adapterFlags
+     * @param {*} hotbarApp
+     * @returns {Promise<boolean>}
+     */
+    async onAdapterFlagsChanged(adapterFlags, hotbarApp) {
+        let handled = false;
+
+        if (Object.prototype.hasOwnProperty.call(adapterFlags, 'selectedPassives')) {
+            if (hotbarApp.components?.hotbar?.passivesContainer) {
+                await hotbarApp.components.hotbar.passivesContainer.render();
+                handled = true;
+            }
+        }
+
+        if (Object.prototype.hasOwnProperty.call(adapterFlags, 'useTokenImage')) {
+            const portraitContainer = hotbarApp.components?.portrait;
+            if (portraitContainer) {
+                await portraitContainer.render();
+                handled = true;
+            }
+        }
+
+        return handled;
+    }
+
+    /**
      * Get default portrait data configuration for PF2e
      * Called by core when user hasn't configured portrait data yet
      * @returns {Array<Object>} Default slot configurations
