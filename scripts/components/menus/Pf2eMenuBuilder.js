@@ -14,15 +14,23 @@ export class Pf2eMenuBuilder extends MenuBuilder {
      * @returns {Promise<Array>} Menu items array
      */
     async buildPortraitMenu(portraitContainer, event) {
+        const actor = portraitContainer.actor;
+        if (!actor) return [];
+
+        const actorImagePreference = actor.getFlag(MODULE_ID, 'useTokenImage');
+        const defaultUseTokenImage = game.settings.get(MODULE_ID, 'defaultPortraitImageSource') !== 'portrait';
+        const useTokenImage = actorImagePreference !== undefined ? actorImagePreference : defaultUseTokenImage;
         const items = [];
 
         // Token image option
         items.push({
             key: 'token',
             label: game.i18n.localize(`${MODULE_ID}.Menu.UseTokenImage`),
-            icon: 'fas fa-chess-pawn',
+            icon: useTokenImage ? 'fas fa-check' : 'fas fa-chess-pawn',
             onClick: async () => {
-                await portraitContainer.updateImagePreference?.();
+                if (!useTokenImage) {
+                    await actor.setFlag(MODULE_ID, 'useTokenImage', true);
+                }
             }
         });
 
@@ -30,9 +38,11 @@ export class Pf2eMenuBuilder extends MenuBuilder {
         items.push({
             key: 'portrait',
             label: game.i18n.localize(`${MODULE_ID}.Menu.UseCharacterPortrait`),
-            icon: 'fas fa-user',
+            icon: !useTokenImage ? 'fas fa-check' : 'fas fa-user',
             onClick: async () => {
-                await portraitContainer.updateImagePreference?.();
+                if (useTokenImage) {
+                    await actor.setFlag(MODULE_ID, 'useTokenImage', false);
+                }
             }
         });
 

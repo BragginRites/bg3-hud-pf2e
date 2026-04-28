@@ -289,13 +289,23 @@ export async function createPf2ePortraitContainer() {
         }
 
         /**
+         * Resolve whether this actor should use token art.
+         * Actor flags override the client default setting.
+         * @returns {boolean}
+         */
+        _useTokenImage() {
+            const actorPreference = this.actor?.getFlag('bg3-hud-pf2e', 'useTokenImage');
+            if (actorPreference !== undefined) return actorPreference;
+            return game.settings.get('bg3-hud-pf2e', 'defaultPortraitImageSource') !== 'portrait';
+        }
+
+        /**
          * Get portrait image URL
-         * Defaults to token image unless explicitly set to use actor portrait
+         * Defaults to the client setting unless explicitly set on the actor.
          * @returns {string} Image URL
          */
         getPortraitImage() {
-            // Check saved preference (undefined means use default: token image)
-            const useTokenImage = this.actor?.getFlag('bg3-hud-pf2e', 'useTokenImage') ?? true;
+            const useTokenImage = this._useTokenImage();
 
             if (useTokenImage) {
                 return this.token?.document?.texture?.src || this.actor?.img || '';
@@ -312,7 +322,7 @@ export async function createPf2ePortraitContainer() {
             if (!this.actor) return;
 
             // Get current preference
-            const currentPreference = this.actor.getFlag('bg3-hud-pf2e', 'useTokenImage') ?? true;
+            const currentPreference = this._useTokenImage();
 
             // Toggle the preference
             const newPreference = !currentPreference;
