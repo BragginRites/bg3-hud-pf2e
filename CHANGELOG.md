@@ -1,4 +1,4 @@
-## [0.3.0] - 2026-04-28
+## [0.3.0] - 2026-04-29
 
 ### Changed
 - Keeps pace with core 0.3.0: dragging strikes from the Actions tab onto the hotbar still works; passives and portrait (token vs portrait art) still behave as before — same tricks, internals tidied to match the shared HUD codebase.
