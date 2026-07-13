@@ -1,3 +1,10 @@
+## [0.3.1] - 2026-07-13
+
+Requires **bg3-hud-core 0.4.3**.
+
+### Changed
+- **Foundry v14 ready**: Verified and working on Foundry v14, and still fully supported on v13. Item tooltips now have a safety net so descriptions keep showing even if a future Pathfinder 2e update changes how they are prepared.
+
 ## [0.3.0] - 2026-04-29
 
 ### Changed

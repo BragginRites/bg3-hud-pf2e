@@ -88,7 +88,10 @@ async function getItemCardData(item, options = {}) {
 
     if (!enrichedDescription) {
         const description = item.system?.description?.value || '';
-        enrichedDescription = await game.pf2e.TextEditor.enrichHTML(description, {
+        // Prefer the PF2e system's enricher (adds PF2e inline-roll handling); fall back to
+        // the core namespaced TextEditor if the system stops exposing game.pf2e.TextEditor.
+        const enricher = game.pf2e?.TextEditor ?? foundry.applications.ux.TextEditor.implementation;
+        enrichedDescription = await enricher.enrichHTML(description, {
             rollData: () => item.getRollData(),
             relativeTo: item.actor ?? item,
             ...options
