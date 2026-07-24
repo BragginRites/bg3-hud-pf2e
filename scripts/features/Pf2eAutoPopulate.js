@@ -108,6 +108,10 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
         const includeFocusSpells = selectedTypes.includes('spell:focus');
         const addedUuids = new Set(); // Track to avoid duplicates
         const addedPreparedSlots = new Set(); // Track prepared slots
+        const isNPC = actor?.type !== 'character';
+        const filterPrepared = isNPC
+            ? game.settings.get(MODULE_ID, 'filterPreparedSpellsNPCs')
+            : game.settings.get(MODULE_ID, 'filterPreparedSpellsPlayers');
 
         // Handle 'actions' type - gets items that produce actions
         if (includeActions) {
@@ -164,7 +168,9 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
                 const entryData = entry.system ?? {};
                 const tradition = entryData.prepared?.value;
 
-                // PREPARED CASTERS: Consolidated approach - one cell per unique spell with uses counter
+                // PREPARED CASTERS: one cell per unique prepared spell with uses counter.
+                // When filterPrepared is on (default intent of issue #5), only spells that
+                // are actually prepared in slots are added - never the full spell list.
                 if (tradition === 'prepared' && includeSpells) {
                     const slots = entryData.slots ?? {};
                     const spellCounts = new Map(); // spellId -> {spell, total, remaining, entryId}
@@ -176,11 +182,11 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
                         const preparedList = slotData?.prepared;
                         if (!preparedList) continue;
 
-                        const preparedArray = Array.isArray(preparedList)
-                            ? preparedList
-                            : Object.values(preparedList);
+                        const preparedEntries = Array.isArray(preparedList)
+                            ? preparedList.map((slot, slotId) => [slotId, slot])
+                            : Object.entries(preparedList);
 
-                        for (const slot of preparedArray) {
+                        for (const [, slot] of preparedEntries) {
                             if (!slot?.id) continue; // Empty slot
 
                             const spell = actor.items.get(slot.id);
@@ -203,7 +209,7 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
                         }
                     }
 
-                    // Create one cell per unique spell with uses counter
+                    // Create one cell per unique prepared spell with uses counter
                     for (const [spellId, data] of spellCounts) {
                         if (addedUuids.has(data.spell.uuid)) continue;
                         addedUuids.add(data.spell.uuid);
@@ -233,6 +239,24 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
                                 },
                                 depleted: data.remaining === 0
                             });
+                        }
+                    }
+
+                    // If the GM disabled the prepared filter, also include unprepared
+                    // spells from the entry collection (spellbook) for prep casters.
+                    if (!filterPrepared) {
+                        const collection = actor.spellcasting?.collections?.get(entry.id);
+                        if (collection) {
+                            for (const spell of collection) {
+                                if (addedUuids.has(spell.uuid)) continue;
+                                addedUuids.add(spell.uuid);
+                                items.push({
+                                    uuid: spell.uuid,
+                                    type: 'Item',
+                                    name: spell.name,
+                                    img: spell.img
+                                });
+                            }
                         }
                     }
                 }
@@ -306,102 +330,6 @@ export class Pf2eAutoPopulate extends AutoPopulateFramework {
             }
         }
         return false;
-    }
-
-    /**
-     * Check if spell is usable (prepared, spontaneous, etc.)
-     * When filtering is enabled for the actor type, only includes:
-     * - Prepared spells (location.signature or explicitly prepared)
-     * - Focus spells (always usable if known)
-     * - Innate spells (always usable)
-     * - Spontaneous spells (always usable - caster knows all spells in repertoire)
-     * When disabled, includes all spells.
-     * @param {Actor} actor - The actor
-     * @param {Item} item - The spell item
-     * @returns {boolean}
-     * @private
-     */
-    _isSpellUsable(actor, item) {
-        // Check if filtering is enabled for this actor type
-        const isNPC = actor.type === 'npc';
-        const shouldFilter = isNPC
-            ? game.settings.get(MODULE_ID, 'filterPreparedSpellsNPCs')
-            : game.settings.get(MODULE_ID, 'filterPreparedSpellsPlayers');
-
-        if (!shouldFilter) {
-            // Filtering disabled for this actor type: include all spells
-            return true;
-        }
-
-        const sys = item.system ?? {};
-        const location = sys.location ?? {};
-
-        // Focus spells are always usable
-        const traits = sys.traits?.value ?? [];
-        if (traits.includes('focus')) {
-            return true;
-        }
-
-        // Check spellcasting entry to determine tradition
-        const entryId = location.value;
-        if (!entryId) {
-            // No spellcasting entry - might be an orphaned spell, exclude it
-            return false;
-        }
-
-        const entry = actor.items.get(entryId);
-        if (!entry) {
-            return false;
-        }
-
-        const entryData = entry.system ?? {};
-        const tradition = entryData.prepared?.value;
-
-        // Spontaneous and innate traditions: all spells in repertoire are usable
-        if (tradition === 'spontaneous' || tradition === 'innate') {
-            return true;
-        }
-
-        // Prepared tradition: only include if spell is actually prepared in a slot
-        // In PF2e, prepared spells are tracked in entry.system.slots[slotX].prepared[]
-        if (tradition === 'prepared') {
-            // Signature spells are always available
-            if (location.signature) {
-                return true;
-            }
-
-            // Check if the spell is slotted in the prepared list
-            const slots = entryData.slots ?? {};
-            for (const slotKey of Object.keys(slots)) {
-                const slotData = slots[slotKey];
-                const preparedList = slotData?.prepared;
-
-                // prepared can be array or object depending on slot usage
-                if (!preparedList) continue;
-
-                const preparedArray = Array.isArray(preparedList)
-                    ? preparedList
-                    : Object.values(preparedList);
-
-                // Check if this spell's ID exists in any prepared slot
-                for (const preparedSlot of preparedArray) {
-                    if (preparedSlot?.id === item.id) {
-                        return true;
-                    }
-                }
-            }
-
-            // Spell is not prepared in any slot
-            return false;
-        }
-
-        // Focus tradition: focus spells are always usable
-        if (tradition === 'focus') {
-            return true;
-        }
-
-        // Default: allow the spell
-        return true;
     }
 
     /**

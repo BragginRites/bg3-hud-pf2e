@@ -124,51 +124,33 @@ export function getTargetRequirements({ item, activity = null }) {
  * @returns {Object} { valid: boolean, reason: string|null }
  */
 export function isValidTargetType({ sourceToken, targetToken, requirements }) {
-    if (!targetToken) {
-        return { valid: false, reason: game.i18n.localize('BG3.TargetSelector.InvalidTarget') };
+    if (!targetToken?.actor) {
+        return { valid: false, reason: game.i18n.localize('bg3-hud-core.TargetSelector.InvalidTarget') };
     }
 
-    if (!targetToken.actor) {
-        return { valid: false, reason: game.i18n.localize('BG3.TargetSelector.NoActor') };
+    const targetType = requirements?.targetType;
+    if (!targetType || targetType === 'any') {
+        return { valid: true, reason: null };
     }
-
-    // Check visibility
-    if (!targetToken.isVisible || targetToken.document.hidden) {
-        return { valid: false, reason: game.i18n.localize('BG3.TargetSelector.TokenNotVisible') };
-    }
-
-    // Check target type
-    const targetType = requirements.targetType;
 
     if (targetType === 'self') {
         if (targetToken !== sourceToken) {
-            return { valid: false, reason: game.i18n.localize('BG3.TargetSelector.SelfOnly') };
+            return { valid: false, reason: game.i18n.localize('bg3-hud-core.TargetSelector.SelfOnly') };
         }
-    } else if (targetType === 'enemy') {
-        // Can't target self
-        if (targetToken === sourceToken) {
-            return { valid: false, reason: game.i18n.localize('BG3.TargetSelector.CannotTargetSelf') };
-        }
-
-        // Check disposition for enemy
-        const isEnemy = _isEnemy(sourceToken, targetToken);
-        if (!isEnemy) {
-            return { valid: false, reason: game.i18n.localize('BG3.TargetSelector.MustBeEnemy') };
-        }
-    } else if (targetType === 'ally' || targetType === 'willing') {
-        // Must be friendly
-        const isFriendly = _isFriendly(sourceToken, targetToken);
-        if (!isFriendly) {
-            return { valid: false, reason: game.i18n.localize('BG3.TargetSelector.MustBeAlly') };
-        }
-    } else if (targetType === 'creature') {
-        // Must have a creature type
-        const creatureType = targetToken.actor?.system?.details?.creature?.value;
-        if (!creatureType) {
-            return { valid: false, reason: game.i18n.localize('BG3.TargetSelector.MustBeCreature') };
-        }
+        return { valid: true, reason: null };
     }
 
+    if (targetType === 'enemy' || targetType === 'other') {
+        if (targetToken === sourceToken) {
+            return { valid: false, reason: game.i18n.localize('bg3-hud-core.TargetSelector.CannotTargetSelf') };
+        }
+        if (targetType === 'enemy' && !_isEnemy(sourceToken, targetToken)) {
+            return { valid: false, reason: game.i18n.localize('bg3-hud-core.TargetSelector.MustBeEnemy') };
+        }
+        return { valid: true, reason: null };
+    }
+
+    // Ally / creature / etc. are not enforced here - leave that to the system workflow
     return { valid: true, reason: null };
 }
 
@@ -352,45 +334,6 @@ export function calculateRange({ item, activity = null, actor = null }) {
     }
 
     return rangeInfo;
-}
-
-/**
- * Convert a range value to scene units.
- * @param {number} value - The range value
- * @param {string} fromUnits - Source units ('ft', 'feet', 'm', 'meters')
- * @returns {number} Range in scene units
- * @private
- */
-function _convertToSceneUnits(value, fromUnits) {
-    if (!value || !canvas?.scene?.grid) return value;
-
-    const sceneUnits = canvas.scene.grid.units?.toLowerCase() || 'ft';
-    const fromFeet = fromUnits === 'ft' || fromUnits === 'feet' || fromUnits === 'foot';
-    const sceneIsFeet = sceneUnits.includes('ft') || sceneUnits.includes('feet') || sceneUnits.includes('foot');
-    const sceneIsMeters = sceneUnits.includes('m') || sceneUnits.includes('meter');
-
-    // If scene uses feet and range is in feet, no conversion
-    if (fromFeet && sceneIsFeet) {
-        return value;
-    }
-
-    // If scene uses meters and range is in meters, no conversion
-    if (!fromFeet && sceneIsMeters) {
-        return value;
-    }
-
-    // Convert feet to meters (1 foot = 0.3048 meters)
-    if (fromFeet && sceneIsMeters) {
-        return Math.round(value * 0.3048 * 10) / 10; // Round to 1 decimal
-    }
-
-    // Convert meters to feet (1 meter = 3.28084 feet)
-    if (!fromFeet && sceneIsFeet) {
-        return Math.round(value * 3.28084);
-    }
-
-    // Unknown units, assume compatible
-    return value;
 }
 
 // ========== Private Helper Functions ==========

@@ -1,4 +1,5 @@
 import { MenuBuilder } from '/modules/bg3-hud-core/scripts/components/ui/MenuBuilder.js';
+import { resolveUseTokenImage } from '/modules/bg3-hud-core/scripts/utils/portraitImage.js';
 
 const MODULE_ID = 'bg3-hud-pf2e';
 
@@ -17,9 +18,7 @@ export class Pf2eMenuBuilder extends MenuBuilder {
         const actor = portraitContainer.actor;
         if (!actor) return [];
 
-        const actorImagePreference = actor.getFlag(MODULE_ID, 'useTokenImage');
-        const defaultUseTokenImage = game.settings.get(MODULE_ID, 'defaultPortraitImageSource') !== 'portrait';
-        const useTokenImage = actorImagePreference !== undefined ? actorImagePreference : defaultUseTokenImage;
+        const useTokenImage = resolveUseTokenImage(actor, MODULE_ID);
         const items = [];
 
         // Token image option

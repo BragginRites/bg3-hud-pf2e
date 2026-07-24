@@ -146,6 +146,7 @@
             "AutoPopulateConfigurationSaved": "Auto-populate configuration saved",
             "ItemNotFound": "Item not found",
             "ItemCannotBeUsed": "Item cannot be used",
+            "NoSlotsRemaining": "No spell slots remaining for this spell",
             "MacroNotFound": "Macro not found",
             "ActorNotFound": "Actor not found",
             "StrikeNotFound": "Strike is no longer available",

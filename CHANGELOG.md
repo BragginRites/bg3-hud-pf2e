@@ -1,3 +1,23 @@
+## [0.6.0] - 2026-07-24
+
+Requires **bg3-hud-core 0.6.0**.
+
+Mostly a housekeeping release, plus a couple of fixes you might notice.
+
+### Fixed
+- **Players can open the Display menu**: The Display settings menu was locked to GMs, so players couldn't set their own preferences (item names, item uses, health overlay, portrait source). It's now available to everyone, and each player's choices apply only to their own view.
+- **Invalid-target messages**: When the target selector rejected a target (no actor, not visible, must be an enemy/ally, etc.), it showed a raw text code instead of the proper message. These now read correctly.
+
+### Changed
+- **Quieter console**: Routine console messages are now hidden unless you turn on the new Debug Logging setting in the Core module. Warnings and errors still show.
+- **Under-the-hood cleanup**: Removed unused code and tidied duplicated logic (prepared-spell slot handling, weapon/shield quick-roll shortcuts). No change to how the HUD works.
+
+### Fixed
+- **Two-handed weapons in the carousel**: Detects native `held-in-two-hands` (Maul), `two-hand-dX` traits (War Axe), and current 2H grip (`handsHeld`, e.g. Longsword via grip toggle). Those fill both pair slots with a faded off-hand copy and equip with two hands held.
+- **Heightened / prepared slot casting**: Prepared slot ids are preserved when `prepared` is stored as an object, so heightened ranks consume the correct slot. Spontaneous casts prefer the highest affordable rank.
+- **Prepared spell auto-populate**: Respects the Filter Prepared Spells settings so prep casters only get spells actually prepared for the day (unless the filter is disabled).
+
+
 ## [0.3.1] - 2026-07-13
 
 Requires **bg3-hud-core 0.4.3**.

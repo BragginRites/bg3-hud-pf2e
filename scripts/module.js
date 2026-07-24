@@ -15,16 +15,58 @@ import { registerSettings } from './utils/settings.js';
 import { renderPf2eTooltip } from './utils/tooltipRenderer.js';
 import { Pf2eMenuBuilder } from './components/menus/Pf2eMenuBuilder.js';
 import { Pf2eTargetingRules } from './utils/Pf2eTargetingRules.js';
+import { createLogger } from '/modules/bg3-hud-core/scripts/utils/logger.js';
 
 const MODULE_ID = 'bg3-hud-pf2e';
+const log = createLogger('bg3-hud-pf2e');
 
-console.log('BG3 HUD PF2e | Loading adapter');
+/** Highest spell rank in PF2e (0 = cantrips through 10). */
+const MAX_SPELL_RANK = 10;
+
+/** PF2e system compendium UUIDs referenced by the adapter. */
+const PF2E_UUIDS = {
+    /** "Cover" effect applied by the Take Cover action. */
+    cover: 'Compendium.pf2e.other-effects.Item.I9lfZUiCwMiGogVi',
+    /** "Raised Shield" effect applied by the Raise a Shield action. */
+    raiseShield: 'Compendium.pf2e.equipment-effects.Item.2YgXoHvJfrDHucMr'
+};
+
+/**
+ * Iterate the prepared-spell slots of a PF2e spellcasting entry.
+ * Walks ranks 0..MAX_SPELL_RANK and yields each occupied preparation with its
+ * real slot id. PF2e may store `prepared` as an array OR as an object keyed by
+ * slot index - Object.values() alone loses those keys and breaks entry.cast().
+ * @param {Object} slots - `entry.system.slots` (keyed `slot0`..`slot10`)
+ * @yields {{rank: number, slotId: number, prep: Object}}
+ */
+function* iteratePreparedSlots(slots) {
+    if (!slots) return;
+    for (let rank = 0; rank <= MAX_SPELL_RANK; rank++) {
+        const preparedList = slots[`slot${rank}`]?.prepared;
+        if (!preparedList) continue;
+
+        if (Array.isArray(preparedList)) {
+            for (let slotId = 0; slotId < preparedList.length; slotId++) {
+                const prep = preparedList[slotId];
+                if (prep) yield { rank, slotId, prep };
+            }
+        } else {
+            for (const [key, prep] of Object.entries(preparedList)) {
+                if (!prep) continue;
+                const slotId = Number(key);
+                yield { rank, slotId: Number.isFinite(slotId) ? slotId : key, prep };
+            }
+        }
+    }
+}
+
+log.debug('Loading adapter');
 
 /**
  * Register settings
  */
 Hooks.once('init', () => {
-    console.log('BG3 HUD PF2e | Registering settings');
+    log.debug('Registering settings');
     registerSettings();
 });
 
@@ -32,15 +74,15 @@ Hooks.once('init', () => {
  * Wait for core to be ready, then register PF2e components
  */
 Hooks.on('bg3HudReady', async (BG3HUD_API) => {
-    console.log('BG3 HUD PF2e | Received bg3HudReady hook');
+    log.debug('Received bg3HudReady hook');
 
     // Verify we're in PF2e system
     if (game.system.id !== 'pf2e') {
-        console.warn('BG3 HUD PF2e | Not running PF2e system, skipping registration');
+        log.warn('Not running PF2e system, skipping registration');
         return;
     }
 
-    console.log('BG3 HUD PF2e | Registering PF2e components');
+    log.debug('Registering PF2e components');
 
     // Create the portrait container class (extends core's PortraitContainer)
     const Pf2ePortraitContainer = await createPf2ePortraitContainer();
@@ -75,18 +117,18 @@ Hooks.on('bg3HudReady', async (BG3HUD_API) => {
 
     // Register PF2e menu builder
     BG3HUD_API.registerMenuBuilder('pf2e', Pf2eMenuBuilder, { adapter: adapter });
-    console.log('BG3 HUD PF2e | Menu builder registered');
+    log.debug('Menu builder registered');
 
     // Register PF2e tooltip renderer
     const tooltipManager = BG3HUD_API.getTooltipManager();
     if (!tooltipManager) {
-        console.error('BG3 HUD PF2e | TooltipManager not available, cannot register tooltip renderer');
+        log.error('TooltipManager not available, cannot register tooltip renderer');
     } else {
         BG3HUD_API.registerTooltipRenderer('pf2e', renderPf2eTooltip);
-        console.log('BG3 HUD PF2e | Tooltip renderer registered');
+        log.debug('Tooltip renderer registered');
     }
 
-    console.log('BG3 HUD PF2e | Registration complete');
+    log.debug('Registration complete');
 
     // Register hook for spellcasting entry updates to refresh uses counter and depleted state
     Hooks.on('updateItem', (item, changes, options, userId) => {
@@ -113,18 +155,10 @@ Hooks.on('bg3HudReady', async (BG3HUD_API) => {
             let total = 0;
             let remaining = 0;
 
-            for (let rank = 0; rank <= 10; rank++) {
-                const slotKey = `slot${rank}`;
-                const slotData = entrySlots[slotKey];
-                const preparedList = slotData?.prepared;
-                if (!preparedList) continue;
-
-                const preparedArray = Array.isArray(preparedList) ? preparedList : Object.values(preparedList);
-                for (const prep of preparedArray) {
-                    if (prep?.id === spellId) {
-                        total++;
-                        if (!prep.expended) remaining++;
-                    }
+            for (const { prep } of iteratePreparedSlots(entrySlots)) {
+                if (prep?.id === spellId) {
+                    total++;
+                    if (!prep.expended) remaining++;
                 }
             }
 
@@ -175,7 +209,7 @@ class Pf2eAdapter {
         // Link autoPopulate to autoSort for consistent sorting
         this.autoPopulate.setAutoSort(this.autoSort);
 
-        console.log('BG3 HUD PF2e | Pf2eAdapter created with autoSort, autoPopulate, and targetingRules');
+        log.debug('Pf2eAdapter created with autoSort, autoPopulate, and targetingRules');
     }
 
     /**
@@ -251,7 +285,7 @@ class Pf2eAdapter {
         const data = cell.data;
         if (!data) return;
 
-        console.log('PF2e Adapter | Cell clicked:', data);
+        log.debug('Cell clicked:', data);
 
         // Handle different data types
         switch (data.type) {
@@ -269,7 +303,7 @@ class Pf2eAdapter {
                 if (data.uuid) {
                     await this._useItem(data.uuid, event);
                 } else {
-                    console.warn('PF2e Adapter | Unknown cell data type:', data.type);
+                    log.warn('Unknown cell data type:', data.type);
                 }
         }
     }
@@ -293,7 +327,7 @@ class Pf2eAdapter {
         if (item?.type === 'shield' && actor) {
             const attrShield = actor.attributes?.shield;
             const isThisShieldRaised = !!(attrShield?.itemId === item.id && attrShield?.raised);
-            const coverUuid = 'Compendium.pf2e.other-effects.Item.I9lfZUiCwMiGogVi';
+            const coverUuid = PF2E_UUIDS.cover;
             const hasShieldCover = actor.itemTypes?.effect?.some(
                 (e) => e.sourceId === coverUuid && e.getFlag?.(MODULE_ID, 'shieldCover'),
             );
@@ -354,7 +388,7 @@ class Pf2eAdapter {
             return;
         }
 
-        console.log('PF2e Adapter | Using item:', item.name);
+        log.debug('Using item:', item.name);
 
         // Resolve activity/strike for targeting checks
         let activity = null;
@@ -401,13 +435,13 @@ class Pf2eAdapter {
 
                     // If user cancelled (empty array returned when cancelled), abort item use
                     if (!targets || targets.length === 0) {
-                        console.log('PF2e Adapter | Target selection cancelled');
+                        log.debug('Target selection cancelled');
                         return;
                     }
 
-                    console.log('PF2e Adapter | Targets selected:', targets.map(t => t.name).join(', '));
+                    log.debug('Targets selected:', targets.map(t => t.name).join(', '));
                 } catch (error) {
-                    console.error('PF2e Adapter | Target selection error:', error);
+                    log.error('Target selection error:', error);
                     return;
                 }
             }
@@ -429,25 +463,8 @@ class Pf2eAdapter {
             if (item.actor && (item.type === 'weapon' || item.type === 'melee')) {
                 const strike = item.actor.system?.actions?.find?.((s) => s.item?.id === item.id);
                 if (strike) {
-                    // Handle modifier key overrides for quick rolling
-                    // We must pass a sanitized event to prevent PF2e from interpreting modifiers as Roll Mode overrides (e.g. Ctrl=Blind)
-                    if (event.shiftKey || event.ctrlKey || event.altKey) {
-                        const options = {
-                            event: {
-                                shiftKey: false,
-                                ctrlKey: false,
-                                altKey: false,
-                                metaKey: false,
-                                type: 'click',
-                                preventDefault: () => { },
-                                stopPropagation: () => { }
-                            }
-                        };
-
-                        if (event.shiftKey) return strike.variants[0]?.roll(options);
-                        if (event.ctrlKey) return strike.variants[1]?.roll(options);
-                        if (event.altKey) return strike.variants[2]?.roll(options);
-                    }
+                    const quickRoll = this._tryQuickStrikeRoll(strike, event);
+                    if (quickRoll) return quickRoll;
 
                     await this._postStrikeChatCard(item.actor, strike);
                     return;
@@ -459,24 +476,8 @@ class Pf2eAdapter {
             if (item.actor && item.type === 'shield') {
                 const strike = item.actor.system?.actions?.find?.((s) => s.item?.shield?.id === item.id);
                 if (strike) {
-                    // Handle modifier key overrides for quick rolling
-                    if (event.shiftKey || event.ctrlKey || event.altKey) {
-                        const options = {
-                            event: {
-                                shiftKey: false,
-                                ctrlKey: false,
-                                altKey: false,
-                                metaKey: false,
-                                type: 'click',
-                                preventDefault: () => { },
-                                stopPropagation: () => { }
-                            }
-                        };
-
-                        if (event.shiftKey) return strike.variants[0]?.roll(options);
-                        if (event.ctrlKey) return strike.variants[1]?.roll(options);
-                        if (event.altKey) return strike.variants[2]?.roll(options);
-                    }
+                    const quickRoll = this._tryQuickStrikeRoll(strike, event);
+                    if (quickRoll) return quickRoll;
 
                     await this._postStrikeChatCard(item.actor, strike);
                     return;
@@ -492,25 +493,14 @@ class Pf2eAdapter {
                     const tradition = entry.system?.prepared?.value;
 
                     // For prepared casters, find the FIRST non-expended slot
+                    // (uses real slot ids so heightened ranks consume correctly)
                     if (tradition === 'prepared') {
                         const slots = entry.system?.slots ?? {};
-                        for (let rank = 0; rank <= 10; rank++) {
-                            const slotData = slots[`slot${rank}`];
-                            const preparedList = slotData?.prepared;
-                            if (!preparedList) continue;
-
-                            const preparedArray = Array.isArray(preparedList)
-                                ? preparedList
-                                : Object.values(preparedList);
-
-                            for (let slotId = 0; slotId < preparedArray.length; slotId++) {
-                                const prep = preparedArray[slotId];
-                                if (prep?.id === item.id && !prep.expended) {
-                                    // Cast this specific slot
-                                    console.log('PF2e Adapter | Casting prepared spell at rank', rank, 'slot', slotId);
-                                    await entry.cast(item, { rank, slotId, consume: true });
-                                    return;
-                                }
+                        for (const { rank, slotId, prep } of iteratePreparedSlots(slots)) {
+                            if (prep?.id === item.id && !prep.expended) {
+                                log.debug('Casting prepared spell at rank', rank, 'slot', slotId);
+                                await entry.cast(item, { rank, slotId, consume: true });
+                                return;
                             }
                         }
                         // All slots expended
@@ -518,14 +508,24 @@ class Pf2eAdapter {
                         return;
                     }
 
-                    // Spontaneous/innate: just cast at the spell's rank
-                    const rank = item.rank;
-                    await entry.cast(item, { rank, consume: true });
+                    // Spontaneous/innate: cast at the highest affordable rank when
+                    // the spell was heightened into a higher slot, else base rank.
+                    const baseRank = Number(item.rank) || Number(item.system?.level?.value) || 1;
+                    const slots = entry.system?.slots ?? {};
+                    let castRank = baseRank;
+                    for (let r = MAX_SPELL_RANK; r >= baseRank; r--) {
+                        const slot = slots[`slot${r}`];
+                        if (slot && (slot.value ?? 0) > 0) {
+                            castRank = r;
+                            break;
+                        }
+                    }
+                    await entry.cast(item, { rank: castRank, consume: true });
                     return;
                 }
 
                 // Fallback: If no entry or cast method, use toMessage (won't consume)
-                console.warn('PF2e Adapter | Spell has no spellcasting entry with cast method, falling back to toMessage');
+                log.warn('Spell has no spellcasting entry with cast method, falling back to toMessage');
             }
 
             // For feats and action items, properly USE the action (apply effects, decrement frequency)
@@ -556,68 +556,7 @@ class Pf2eAdapter {
 
             ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ItemCannotBeUsed`));
         } catch (error) {
-            console.error('[bg3-hud-pf2e] Failed to use item', { uuid: item.uuid, name: item.name }, error);
-            ui.notifications.error(game.i18n.localize(`${MODULE_ID}.Notifications.ItemCannotBeUsed`));
-        }
-    }
-
-    /**
-     * Use a prepared spell from a specific slot
-     * This allows individual prepared spell instances to be cast and expended
-     * @param {Object} data - PreparedSpell cell data (entryId, groupId, slotId, spellId, uuid)
-     * @param {MouseEvent} event - The triggering event
-     * @private
-     */
-    async _usePreparedSpell(data, event) {
-        // Note: data.uuid is now a SYNTHETIC slot identifier (pf2e.prepared.{entryId}.{rank}.{slotId})
-        // data.spellUuid contains the real spell UUID for lookups
-        const { entryId, groupId, slotId, spellId, spellUuid } = data;
-
-        // Get actor from the spell's real UUID (embedded items include actor path)
-        let actor = null;
-        let spell = null;
-
-        // Try to get spell and actor from real spell UUID
-        if (spellUuid) {
-            spell = await fromUuid(spellUuid);
-            actor = spell?.actor;
-        }
-
-        // Fallback to hotbar's current actor if spellUuid didn't work
-        if (!actor) {
-            const hotbarApp = globalThis.ui?.BG3HUD_APP;
-            actor = hotbarApp?.currentActor;
-        }
-
-        if (!actor) {
-            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.NoActorSelected`));
-            return;
-        }
-
-        // Get spell and entry from actor (spell might already be set from UUID)
-        if (!spell) {
-            spell = actor.items.get(spellId);
-        }
-        const entry = actor.items.get(entryId);
-
-        if (!spell || !entry) {
-            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ItemNotFound`));
-            return;
-        }
-
-        console.log('PF2e Adapter | Using prepared spell:', spell.name, 'entryId:', entryId, 'rank:', groupId, 'slotId:', slotId);
-
-        try {
-            if (typeof entry.cast === 'function') {
-                // Cast with specific slotId to mark that exact slot as expended
-                await entry.cast(spell, { rank: groupId, slotId: slotId, consume: true });
-            } else {
-                // Fallback if cast method not available
-                console.warn('PF2e Adapter | Entry has no cast method, falling back to toMessage');
-                await spell.toMessage?.(event, { create: true });
-            }
-        } catch (error) {
-            console.error('[bg3-hud-pf2e] Failed to cast prepared spell', { spell: spell.name, error });
+            log.error('Failed to use item', { uuid: item.uuid, name: item.name }, error);
             ui.notifications.error(game.i18n.localize(`${MODULE_ID}.Notifications.ItemCannotBeUsed`));
         }
     }
@@ -647,26 +586,10 @@ class Pf2eAdapter {
             return;
         }
 
-        console.log('PF2e Adapter | Using strike:', strike.label);
+        log.debug('Using strike:', strike.label);
 
-        // Handle modifier key overrides for quick rolling
-        if (event.shiftKey || event.ctrlKey || event.altKey) {
-            const options = {
-                event: {
-                    shiftKey: false,
-                    ctrlKey: false,
-                    altKey: false,
-                    metaKey: false,
-                    type: 'click',
-                    preventDefault: () => { },
-                    stopPropagation: () => { }
-                }
-            };
-
-            if (event.shiftKey) return strike.variants[0]?.roll(options);
-            if (event.ctrlKey) return strike.variants[1]?.roll(options);
-            if (event.altKey) return strike.variants[2]?.roll(options);
-        }
+        const quickRoll = this._tryQuickStrikeRoll(strike, event);
+        if (quickRoll) return quickRoll;
 
         // Post the strike chat card
         await this._postStrikeChatCard(actor, strike);
@@ -680,7 +603,7 @@ class Pf2eAdapter {
      * @private
      */
     async _useAction(item, event) {
-        console.log('PF2e Adapter | Using action via rollItemMacro:', item.name);
+        log.debug('Using action via rollItemMacro:', item.name);
 
         // Use PF2e's native rollItemMacro which properly:
         // - Calls createUseActionMessage
@@ -692,7 +615,7 @@ class Pf2eAdapter {
         }
 
         // Fallback if API not available
-        console.warn('PF2e Adapter | game.pf2e.rollItemMacro not available, using toMessage');
+        log.warn('game.pf2e.rollItemMacro not available, using toMessage');
         await item.toMessage?.(event, { create: true });
     }
 
@@ -708,7 +631,7 @@ class Pf2eAdapter {
             return;
         }
 
-        console.log('PF2e Adapter | Executing macro:', macro.name);
+        log.debug('Executing macro:', macro.name);
         await macro.execute();
     }
 
@@ -721,7 +644,7 @@ class Pf2eAdapter {
      */
     async transformItemToCellData(item) {
         if (!item) {
-            console.warn('PF2e Adapter | transformItemToCellData: No item provided');
+            log.warn('transformItemToCellData: No item provided');
             return null;
         }
 
@@ -823,22 +746,11 @@ class Pf2eAdapter {
                 let remainingCasts = 0;
 
                 // Count all preparations of this spell across all ranks
-                for (let rank = 0; rank <= 10; rank++) {
-                    const slotKey = `slot${rank}`;
-                    const slotData = slots[slotKey];
-                    const preparedList = slotData?.prepared;
-                    if (!preparedList) continue;
-
-                    const preparedArray = Array.isArray(preparedList)
-                        ? preparedList
-                        : Object.values(preparedList);
-
-                    for (const prep of preparedArray) {
-                        if (prep?.id === spell.id) {
-                            totalPreps++;
-                            if (!prep.expended) {
-                                remainingCasts++;
-                            }
+                for (const { prep } of iteratePreparedSlots(slots)) {
+                    if (prep?.id === spell.id) {
+                        totalPreps++;
+                        if (!prep.expended) {
+                            remainingCasts++;
                         }
                     }
                 }
@@ -984,25 +896,12 @@ class Pf2eAdapter {
                     // For prepared casters, look up which slot the spell is in
                     if (tradition === 'prepared') {
                         const slots = entry.system?.slots ?? {};
-                        for (let rank = 0; rank <= 10; rank++) {
-                            const slotKey = `slot${rank}`;
-                            const slotData = slots[slotKey];
-                            const preparedList = slotData?.prepared;
-
-                            if (!preparedList) continue;
-
-                            const preparedArray = Array.isArray(preparedList)
-                                ? preparedList
-                                : Object.values(preparedList);
-
-                            // Check all preparations of this spell
-                            for (const prep of preparedArray) {
-                                if (prep?.id === spellId) {
-                                    if (preparedRank === null) preparedRank = rank;
-                                    totalPreps++;
-                                    if (prep.expended === true) {
-                                        expendedPreps++;
-                                    }
+                        for (const { rank, prep } of iteratePreparedSlots(slots)) {
+                            if (prep?.id === spellId) {
+                                if (preparedRank === null) preparedRank = rank;
+                                totalPreps++;
+                                if (prep.expended === true) {
+                                    expendedPreps++;
                                 }
                             }
                         }
@@ -1065,13 +964,13 @@ class Pf2eAdapter {
             (e) =>
                 e.slug === 'raise-a-shield' ||
                 e.slug === 'effect-raise-a-shield' ||
-                e.sourceId === 'Compendium.pf2e.equipment-effects.Item.2YgXoHvJfrDHucMr',
+                e.sourceId === PF2E_UUIDS.raiseShield,
         );
         if (!raiseEffect) return;
         try {
             await raiseEffect.delete();
         } catch (error) {
-            console.error(`[${MODULE_ID}] Failed to lower shield`, { actorId: actor.id }, error);
+            log.error('Failed to lower shield', { actorId: actor.id }, error);
             ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ActionFailed`));
         }
     }
@@ -1105,7 +1004,7 @@ class Pf2eAdapter {
         const isTowerShield = hasTowerTrait || ['tower-shield', 'fortress-shield'].includes(baseItem);
         const coverSelection = isTowerShield ? { bonus: 4, level: 'greater' } : { bonus: 2, level: 'standard' };
 
-        const coverUuid = 'Compendium.pf2e.other-effects.Item.I9lfZUiCwMiGogVi';
+        const coverUuid = PF2E_UUIDS.cover;
         const existing = actor.itemTypes?.effect?.find(
             (e) => e.sourceId === coverUuid && e.getFlag?.(MODULE_ID, 'shieldCover'),
         );
@@ -1143,7 +1042,7 @@ class Pf2eAdapter {
             await actor.createEmbeddedDocuments('Item', [data]);
             return true;
         } catch (error) {
-            console.warn(`[${MODULE_ID}] Failed to apply cover effect`, error);
+            log.warn('Failed to apply cover effect', error);
             return false;
         }
     }
@@ -1189,9 +1088,51 @@ class Pf2eAdapter {
                 'system.equipped.inSlot': true
             });
         } catch (error) {
-            console.error(`[${MODULE_ID}] Failed to toggle grip`, { itemId: item.id, hands }, error);
+            log.error('Failed to toggle grip', { itemId: item.id, hands }, error);
             ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ActionFailed`));
+            return;
         }
+
+        // Slot fill / off-hand stash follows current grip (e.g. Longsword versatile → 2H)
+        try {
+            const weaponSets = ui.BG3HUD_APP?.components?.weaponSets;
+            if (weaponSets && typeof weaponSets.refreshTwoHandedDisplay === 'function') {
+                await weaponSets.refreshTwoHandedDisplay();
+            }
+        } catch (error) {
+            log.warn('Grip changed but weapon-set refresh failed', { itemId: item.id, hands }, error);
+        }
+    }
+
+    /**
+     * Quick-roll a strike variant when a modifier key is held (Shift = strike 0,
+     * Ctrl = strike 1 / first MAP, Alt = strike 2 / second MAP).
+     * Passes a sanitized event so PF2e does not reinterpret the modifier as a
+     * Roll Mode override (e.g. Ctrl = Blind roll).
+     * @param {Object} strike - The strike action from actor.system.actions
+     * @param {MouseEvent} event - The triggering event
+     * @returns {Promise|null} The variant roll promise if a modifier matched, else null
+     * @private
+     */
+    _tryQuickStrikeRoll(strike, event) {
+        if (!event.shiftKey && !event.ctrlKey && !event.altKey) return null;
+
+        const options = {
+            event: {
+                shiftKey: false,
+                ctrlKey: false,
+                altKey: false,
+                metaKey: false,
+                type: 'click',
+                preventDefault: () => { },
+                stopPropagation: () => { }
+            }
+        };
+
+        if (event.shiftKey) return strike.variants[0]?.roll(options);
+        if (event.ctrlKey) return strike.variants[1]?.roll(options);
+        if (event.altKey) return strike.variants[2]?.roll(options);
+        return null;
     }
 
     /**

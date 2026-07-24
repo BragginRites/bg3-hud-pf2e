@@ -1,6 +1,8 @@
 import { InfoContainer } from '/modules/bg3-hud-core/scripts/components/containers/InfoContainer.js';
+import { createLogger } from '/modules/bg3-hud-core/scripts/utils/logger.js';
 
 const MODULE_ID = 'bg3-hud-pf2e';
+const log = createLogger('bg3-hud-pf2e');
 
 /**
  * Ability icon mapping (FontAwesome)
@@ -52,7 +54,7 @@ export class Pf2eInfoContainer extends InfoContainer {
    */
   async onButtonRightClick(event) {
     if (!this.actor) {
-      console.warn('Pf2e Info | No actor available for initiative roll');
+      log.warn('Pf2e Info | No actor available for initiative roll');
       return;
     }
 
@@ -62,7 +64,7 @@ export class Pf2eInfoContainer extends InfoContainer {
         await this.actor.rollInitiative({ createCombatants: true });
       }
     } catch (err) {
-      console.error('Pf2e Info | Initiative roll failed', err);
+      log.error('Pf2e Info | Initiative roll failed', err);
       ui.notifications?.error(game.i18n.localize(`${MODULE_ID}.Notifications.FailedToRollInitiative`));
     }
   }
@@ -134,7 +136,7 @@ export class Pf2eInfoContainer extends InfoContainer {
 
     // PF2e v7.7.2+ requires actor.skills to be ready
     if (!this.actor?.skills) {
-      console.warn('Pf2e Info | Skill data not ready');
+      log.warn('Pf2e Info | Skill data not ready');
       return grid;
     }
 
@@ -212,7 +214,7 @@ export class Pf2eInfoContainer extends InfoContainer {
               skillRef.roll({ event: e });
             }
           } catch (err) {
-            console.error('Pf2e Info | Skill roll failed', { skill: entry.slug, error: err });
+            log.error('Pf2e Info | Skill roll failed', { skill: entry.slug, error: err });
           }
         });
 
@@ -277,7 +279,7 @@ export class Pf2eInfoContainer extends InfoContainer {
         try {
           if (typeof saveObj.roll === 'function') saveObj.roll({ event: e });
         } catch (err) {
-          console.error('Pf2e Info | Save roll failed', { save: save.id, error: err });
+          log.error('Pf2e Info | Save roll failed', { save: save.id, error: err });
         }
       });
 

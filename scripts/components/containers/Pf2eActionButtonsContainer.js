@@ -1,6 +1,8 @@
 import { ActionButtonsContainer } from '/modules/bg3-hud-core/scripts/components/containers/ActionButtonsContainer.js';
+import { createLogger } from '/modules/bg3-hud-core/scripts/utils/logger.js';
 
 const MODULE_ID = 'bg3-hud-pf2e';
+const log = createLogger('bg3-hud-pf2e');
 
 /**
  * PF2e Action Buttons Container
@@ -34,7 +36,7 @@ export class Pf2eActionButtonsContainer extends ActionButtonsContainer {
             key: 'end-turn',
             classes: ['end-turn-button'],
             icon: 'fas fa-stopwatch',
-            label: '', // icon-only
+            label: game.i18n.localize('BG3HUD.EndTurn') || 'End Turn',
             tooltip: game.i18n.localize('BG3HUD.EndTurn'),
             tooltipDirection: 'LEFT',
             visible: () => {
@@ -74,7 +76,7 @@ export class Pf2eActionButtonsContainer extends ActionButtonsContainer {
                         event
                     });
                 } catch (error) {
-                    console.error('Pf2e Action Buttons | Rest failed:', error);
+                    log.error('Pf2e Action Buttons | Rest failed:', error);
                     ui.notifications.error(game.i18n.localize(`${MODULE_ID}.Notifications.FailedToPerformRest`));
                 }
             }

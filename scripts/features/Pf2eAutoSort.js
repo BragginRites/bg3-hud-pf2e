@@ -1,4 +1,7 @@
 import { AutoSortFramework } from '/modules/bg3-hud-core/scripts/features/AutoSortFramework.js';
+import { createLogger } from '/modules/bg3-hud-core/scripts/utils/logger.js';
+
+const log = createLogger('bg3-hud-pf2e');
 
 /**
  * PF2e Auto Sort Implementation
@@ -43,7 +46,7 @@ export class Pf2eAutoSort extends AutoSortFramework {
                     };
                 }
             } catch (error) {
-                console.warn(`BG3 HUD PF2e | Failed to fetch item data for ${item.uuid}:`, error);
+                log.warn(`Failed to fetch item data for ${item.uuid}:`, error);
                 item.sortData = {
                     name: item.name || '',
                     type: item.type || '',

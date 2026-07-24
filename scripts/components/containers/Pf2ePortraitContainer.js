@@ -3,6 +3,11 @@
  * This will be dynamically created to extend the core PortraitContainer
  * when the module loads and core is available
  */
+import { createLogger } from '/modules/bg3-hud-core/scripts/utils/logger.js';
+import { resolveUseTokenImage } from '/modules/bg3-hud-core/scripts/utils/portraitImage.js';
+
+const log = createLogger('bg3-hud-pf2e');
+
 export async function createPf2ePortraitContainer() {
     // Import core components dynamically
     const { PortraitContainer } = await import('/modules/bg3-hud-core/scripts/components/containers/PortraitContainer.js');
@@ -185,7 +190,7 @@ export async function createPf2ePortraitContainer() {
          */
         async updateHealth() {
             if (!this.element) {
-                console.warn('PortraitHealth | Cannot update health, element not rendered yet');
+                log.warn('PortraitHealth | Cannot update health, element not rendered yet');
                 return;
             }
 
@@ -294,9 +299,7 @@ export async function createPf2ePortraitContainer() {
          * @returns {boolean}
          */
         _useTokenImage() {
-            const actorPreference = this.actor?.getFlag('bg3-hud-pf2e', 'useTokenImage');
-            if (actorPreference !== undefined) return actorPreference;
-            return game.settings.get('bg3-hud-pf2e', 'defaultPortraitImageSource') !== 'portrait';
+            return resolveUseTokenImage(this.actor, 'bg3-hud-pf2e');
         }
 
         /**
@@ -315,25 +318,6 @@ export async function createPf2ePortraitContainer() {
         }
 
         /**
-         * Update image preference (toggle between token and portrait)
-         * @returns {Promise<void>}
-         */
-        async updateImagePreference() {
-            if (!this.actor) return;
-
-            // Get current preference
-            const currentPreference = this._useTokenImage();
-
-            // Toggle the preference
-            const newPreference = !currentPreference;
-
-            // Save to actor flags
-            await this.actor.setFlag('bg3-hud-pf2e', 'useTokenImage', newPreference);
-
-            // The UpdateCoordinator will handle the re-render via _handleAdapterFlags
-        }
-
-        /**
          * Render the PF2e portrait container
          * @returns {Promise<HTMLElement>}
          */
@@ -344,7 +328,7 @@ export async function createPf2ePortraitContainer() {
             }
 
             if (!this.token || !this.actor) {
-                console.warn('Pf2ePortraitContainer | No token or actor provided');
+                log.warn('Pf2ePortraitContainer | No token or actor provided');
                 return this.element;
             }
 
@@ -357,7 +341,7 @@ export async function createPf2ePortraitContainer() {
                     const infoElement = await this.infoContainer.render();
                     this.element.appendChild(infoElement);
                 } catch (e) {
-                    console.warn('Pf2ePortraitContainer | Failed to render info container', e);
+                    log.warn('Pf2ePortraitContainer | Failed to render info container', e);
                 }
             }
 
@@ -371,7 +355,6 @@ export async function createPf2ePortraitContainer() {
 
             // Portrait image/video (use core's _createMediaElement for webm support)
             const mediaElement = this._createMediaElement(imageSrc, this.actor?.name || 'Portrait');
-            const isVideoPortrait = mediaElement.tagName.toLowerCase() === 'video';
 
             // Health overlay (red damage indicator) - check setting
             const showHealthOverlay = game.settings.get('bg3-hud-pf2e', 'showHealthOverlay') ?? true;
@@ -380,19 +363,12 @@ export async function createPf2ePortraitContainer() {
                 const damageOverlay = this.createElement('div', ['damage-overlay']);
                 damageOverlay.style.setProperty('--damage-percent', health.damage);
                 healthOverlay.appendChild(damageOverlay);
-
-                // Apply alpha mask for images only (not compatible with video)
-                if (!isVideoPortrait) {
-                    portraitImageSubContainer.setAttribute('data-bend-mode', 'true');
-                    portraitImageSubContainer.style.setProperty('--bend-img', `url("${mediaElement.src}")`);
-                    this.element.classList.add('use-bend-mask');
-                }
-
                 portraitImageSubContainer.appendChild(healthOverlay);
             }
 
             // Assemble portrait image structure
             portraitImageSubContainer.appendChild(mediaElement);
+            this._syncPortraitAlphaMask(portraitImageSubContainer);
             portraitImageContainer.appendChild(portraitImageSubContainer);
 
             // Add portrait data badges (from core PortraitContainer)
@@ -439,7 +415,7 @@ export async function createPf2ePortraitContainer() {
                 // Add overlay if setting is enabled and it doesn't exist
                 const portraitImageSubContainer = this.element.querySelector('.portrait-image-subcontainer');
                 if (portraitImageSubContainer) {
-                    const mediaElement = portraitImageSubContainer.querySelector('.portrait-image');
+                    const mediaElement = portraitImageSubContainer.querySelector('.portrait-image, .portrait-video');
                     if (mediaElement) {
                         const healthOverlay = this.createElement('div', ['health-overlay']);
                         const newDamageOverlay = this.createElement('div', ['damage-overlay']);
@@ -447,16 +423,13 @@ export async function createPf2ePortraitContainer() {
                         healthOverlay.appendChild(newDamageOverlay);
 
                         portraitImageSubContainer.appendChild(healthOverlay);
-
-                        // Apply alpha mask if not already applied (images only, not video)
-                        const isVideo = mediaElement.tagName.toLowerCase() === 'video';
-                        if (!isVideo && !portraitImageSubContainer.hasAttribute('data-bend-mode')) {
-                            portraitImageSubContainer.setAttribute('data-bend-mode', 'true');
-                            portraitImageSubContainer.style.setProperty('--bend-img', `url("${mediaElement.src}")`);
-                            this.element.classList.add('use-bend-mask');
-                        }
                     }
                 }
+            }
+
+            const portraitImageSubContainer = this.element.querySelector('.portrait-image-subcontainer');
+            if (portraitImageSubContainer) {
+                this._syncPortraitAlphaMask(portraitImageSubContainer);
             }
 
             // Update health text component

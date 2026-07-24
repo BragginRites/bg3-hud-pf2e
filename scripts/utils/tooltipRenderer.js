@@ -3,6 +3,10 @@
  * Handles rendering tooltips for items, actions, and macros
  */
 
+import { createLogger } from '/modules/bg3-hud-core/scripts/utils/logger.js';
+
+const log = createLogger('bg3-hud-pf2e');
+
 /**
  * Render tooltip HTML for PF2e items/macros
  * @param {Object} data - Item or Macro document
@@ -39,7 +43,7 @@ export async function renderPf2eTooltip(data, options = {}) {
         const html = await foundry.applications.handlebars.renderTemplate(templatePath, cardData);
 
         if (!html) {
-            console.warn('BG3 HUD PF2e | Template rendered empty HTML');
+            log.warn('Template rendered empty HTML');
             return null;
         }
 
@@ -49,8 +53,8 @@ export async function renderPf2eTooltip(data, options = {}) {
             direction: 'UP'
         };
     } catch (error) {
-        console.error('BG3 HUD PF2e | Error rendering tooltip:', error);
-        console.error('BG3 HUD PF2e | Error stack:', error.stack);
+        log.error('Error rendering tooltip:', error);
+        log.error('Error stack:', error.stack);
         return null;
     }
 }
@@ -83,7 +87,7 @@ async function getItemCardData(item, options = {}) {
         });
         enrichedDescription = chatData?.description?.value ?? '';
     } catch (err) {
-        console.warn('[bg3-hud-pf2e] getChatData failed, falling back to direct enrich', err);
+        log.warn('getChatData failed, falling back to direct enrich', err);
     }
 
     if (!enrichedDescription) {
