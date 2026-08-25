@@ -937,6 +937,17 @@ class Pf2eAdapter {
         };
     }
 
+    /**
+     * PF2e does not use dnd5e-style prepared/pact membership on item updates.
+     * Prepared/expended state is tracked via spellcastingEntry slots + cell uses.
+     * @param {Item} _item
+     * @param {Actor} _actor
+     * @returns {null}
+     */
+    resolveHotbarMembershipOnItemUpdate(_item, _actor) {
+        return null;
+    }
+
 
     /**
      * Raise Shield via PF2e action macro
@@ -1179,11 +1190,13 @@ class Pf2eAdapter {
      * Update cell depletion states based on actor changes
      * Called by core's UpdateCoordinator on any actor update
      * @param {Actor} actor - The actor that changed
-     * @param {Object} changes - The changes object from updateActor hook
+     * @param {Object} [changes] - The changes object from updateActor hook
+     * @param {boolean} [changes._force] - Recompute even when focus did not change
+     *   (e.g. after a hotbar grid rebuild that reloads stale persisted depleted flags)
      */
-    updateCellDepletionStates(actor, changes) {
-        // Only process if focus pool actually changed
-        if (changes?.system?.resources?.focus === undefined) return;
+    updateCellDepletionStates(actor, changes = {}) {
+        // Only process if focus pool actually changed, or a forced refresh was requested
+        if (!changes?._force && changes?.system?.resources?.focus === undefined) return;
 
         const focusPool = actor.system?.resources?.focus;
         if (!focusPool) return;
