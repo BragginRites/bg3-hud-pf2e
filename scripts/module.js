@@ -5,7 +5,8 @@
 
 import { createPf2ePortraitContainer } from './components/containers/Pf2ePortraitContainer.js';
 import { createPf2ePassivesContainer } from './components/containers/Pf2ePassivesContainer.js';
-import { Pf2eActionButtonsContainer } from './components/containers/Pf2eActionButtonsContainer.js';
+import { getPf2eRests } from './components/containers/Pf2eActionButtonsContainer.js';
+import { ActiveEffectsContainer } from '/modules/bg3-hud-core/scripts/components/containers/ActiveEffectsContainer.js';
 import { Pf2eFilterContainer } from './components/containers/Pf2eFilterContainer.js';
 import { createPf2eWeaponSetContainer } from './components/containers/Pf2eWeaponSetContainer.js';
 import { Pf2eInfoContainer } from './components/containers/Pf2eInfoContainer.js';
@@ -93,23 +94,15 @@ Hooks.on('bg3HudReady', async (BG3HUD_API) => {
     // Create the weapon set container class (extends core's WeaponSetContainer)
     const Pf2eWeaponSetContainer = await createPf2eWeaponSetContainer();
 
-    // Register PF2e portrait container (includes health display)
-    BG3HUD_API.registerPortraitContainer(Pf2ePortraitContainer);
-
-    // Register PF2e passives container (feat selection)
-    BG3HUD_API.registerPassivesContainer(Pf2ePassivesContainer);
-
-    // Register PF2e weapon set container
-    BG3HUD_API.registerWeaponSetContainer(Pf2eWeaponSetContainer);
-
-    // Register PF2e action buttons container (rest/turn buttons)
-    BG3HUD_API.registerActionButtonsContainer(Pf2eActionButtonsContainer);
-
-    // Register PF2e filter container (action costs, traits, spell levels)
-    BG3HUD_API.registerFilterContainer(Pf2eFilterContainer);
-
-    // Register PF2e info container (abilities, skills, saves)
-    BG3HUD_API.registerInfoContainer(Pf2eInfoContainer);
+    BG3HUD_API.registerNamedHudParts({
+        portrait: Pf2ePortraitContainer,
+        passives: Pf2ePassivesContainer,
+        weaponSet: Pf2eWeaponSetContainer,
+        filter: Pf2eFilterContainer,
+        characterInfo: Pf2eInfoContainer,
+        activeEffects: ActiveEffectsContainer,
+        rest: getPf2eRests
+    });
 
     // Create and register the adapter instance
     const adapter = new Pf2eAdapter();
