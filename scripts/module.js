@@ -210,6 +210,51 @@ class Pf2eAdapter {
         return resolvePf2eNotice(changes, actor);
     }
 
+    isHeldItem(cell) {
+        if (!cell || cell.isTwoHandedDuplicate) return false;
+        const item = this._documentFromCell(cell);
+        return this._isHeldDocument(item);
+    }
+
+    isTwoHanded(cell) {
+        if (!cell || cell.isTwoHandedDuplicate) return false;
+        if (cell.two) return true;
+        const item = this._documentFromCell(cell);
+        if (!item || item.type !== 'weapon') return false;
+        return item.system?.usage?.value === 'held-in-two-hands' || item.hands === '2';
+    }
+
+    _documentFromCell(cell) {
+        if (cell.itemType) {
+            return {
+                type: cell.itemType,
+                system: {
+                    usage: { value: cell.usage },
+                    traits: { value: cell.traits || [] }
+                },
+                hands: cell.two ? '2' : undefined
+            };
+        }
+        if (!cell.uuid || typeof fromUuidSync !== 'function') return null;
+        try {
+            return fromUuidSync(cell.uuid);
+        } catch {
+            return null;
+        }
+    }
+
+    _isHeldDocument(item) {
+        if (!item) return false;
+        if (item.type === 'weapon' || item.type === 'shield') return true;
+        if (item.type === 'equipment') {
+            const usage = item.system?.usage?.value || '';
+            if (typeof usage === 'string' && usage.includes('hand')) return true;
+            const traits = item.system?.traits?.value || [];
+            return Array.isArray(traits) && traits.includes('implement');
+        }
+        return false;
+    }
+
     /**
      * PF2e sheet drag: strike rows use `type: Action` with actor UUID + action index.
      * @param {object} dragData Parsed `text/plain` transfer JSON
@@ -629,8 +674,17 @@ class Pf2eAdapter {
             uuid: item.uuid,
             name: item.name,
             img: item.img,
-            type: 'Item'
+            type: 'Item',
+            itemType: item.type
         };
+
+        if (item.type === 'weapon') {
+            cellData.two = item.system?.usage?.value === 'held-in-two-hands' || item.hands === '2';
+            cellData.usage = item.system?.usage?.value;
+        } else if (item.type === 'equipment') {
+            cellData.usage = item.system?.usage?.value;
+            cellData.traits = item.system?.traits?.value;
+        }
 
         // Extract quantity (PF2e stores this in system.quantity)
         if (item.system?.quantity) {

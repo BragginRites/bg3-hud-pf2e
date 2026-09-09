@@ -205,6 +205,8 @@ export async function createPf2eWeaponSetContainer() {
             if (leftCell) await leftCell.setData(leftData, { skipSave: true });
             if (rightCell) await rightCell.setData(rightData, { skipSave: true });
 
+            const persistRight = rightData?.isTwoHandedDuplicate ? null : rightData;
+
             if (!this.weaponSets[setIndex]) {
                 this.weaponSets[setIndex] = { rows: 1, cols: 2, items: {} };
             }
@@ -212,7 +214,7 @@ export async function createPf2eWeaponSetContainer() {
                 this.weaponSets[setIndex].items = {};
             }
             this.weaponSets[setIndex].items['0-0'] = leftData;
-            this.weaponSets[setIndex].items['1-0'] = rightData;
+            this.weaponSets[setIndex].items['1-0'] = persistRight;
             grid.items = this.weaponSets[setIndex].items;
 
             if (rightCell?.element) {
@@ -237,7 +239,7 @@ export async function createPf2eWeaponSetContainer() {
                         container: 'weaponSet',
                         containerIndex: setIndex,
                         slotKey: '1-0',
-                        data: rightData,
+                        data: persistRight,
                     },
                 ]);
             }
