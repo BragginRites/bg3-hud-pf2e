@@ -17,6 +17,7 @@ import { renderPf2eTooltip } from './utils/tooltipRenderer.js';
 import { Pf2eMenuBuilder } from './components/menus/Pf2eMenuBuilder.js';
 import { Pf2eTargetingRules } from './utils/Pf2eTargetingRules.js';
 import { createLogger } from '/modules/bg3-hud-core/scripts/utils/logger.js';
+import { resolvePf2eNotice } from './notice/resolveNotice.js';
 
 const MODULE_ID = 'bg3-hud-pf2e';
 const log = createLogger('bg3-hud-pf2e');
@@ -205,6 +206,10 @@ class Pf2eAdapter {
         log.debug('Pf2eAdapter created with autoSort, autoPopulate, and targetingRules');
     }
 
+    resolveNotice(changes, actor) {
+        return resolvePf2eNotice(changes, actor);
+    }
+
     /**
      * PF2e sheet drag: strike rows use `type: Action` with actor UUID + action index.
      * @param {object} dragData Parsed `text/plain` transfer JSON
@@ -225,32 +230,6 @@ class Pf2eAdapter {
                 pf2eStrikeSlug: strike.slug
             }
         };
-    }
-
-    /**
-     * @param {Record<string, unknown>} adapterFlags
-     * @param {*} hotbarApp
-     * @returns {Promise<boolean>}
-     */
-    async onAdapterFlagsChanged(adapterFlags, hotbarApp) {
-        let handled = false;
-
-        if (Object.prototype.hasOwnProperty.call(adapterFlags, 'selectedPassives')) {
-            if (hotbarApp.components?.hotbar?.passivesContainer) {
-                await hotbarApp.components.hotbar.passivesContainer.render();
-                handled = true;
-            }
-        }
-
-        if (Object.prototype.hasOwnProperty.call(adapterFlags, 'useTokenImage')) {
-            const portraitContainer = hotbarApp.components?.portrait;
-            if (portraitContainer) {
-                await portraitContainer.render();
-                handled = true;
-            }
-        }
-
-        return handled;
     }
 
     /**
@@ -1179,66 +1158,5 @@ class Pf2eAdapter {
         await ChatMessage.create(chatData);
     }
 
-    /**
-     * Update cell depletion states based on actor changes
-     * Called by core's UpdateCoordinator on any actor update
-     * @param {Actor} actor - The actor that changed
-     * @param {Object} [changes] - The changes object from updateActor hook
-     * @param {boolean} [changes._force] - Recompute even when focus did not change
-     *   (e.g. after a hotbar grid rebuild that reloads stale persisted depleted flags)
-     */
-    updateCellDepletionStates(actor, changes = {}) {
-        // Only process if focus pool actually changed, or a forced refresh was requested
-        if (!changes?._force && changes?.system?.resources?.focus === undefined) return;
-
-        const focusPool = actor.system?.resources?.focus;
-        if (!focusPool) return;
-
-        const hotbarApp = ui.BG3HUD_APP;
-        if (!hotbarApp?.components) return;
-
-        // Use requestAnimationFrame to avoid flashing by syncing with render cycle
-        requestAnimationFrame(() => {
-            // Collect focus spell cells from hotbar only (skip quickAccess)
-            const allCells = [];
-            for (const containerKey of ['hotbar', 'weaponSets']) {
-                const container = hotbarApp.components[containerKey];
-                if (container?.gridContainers) {
-                    for (const grid of container.gridContainers) {
-                        if (grid?.cells) {
-                            allCells.push(...grid.cells);
-                        }
-                    }
-                }
-            }
-
-            for (const cell of allCells) {
-                // Defensive: ensure cell, data, and element exist and are stable
-                if (!cell?.data?.uuid) continue;
-                if (!cell?.element) continue;
-                if (!cell.element.isConnected) continue; // Element not in DOM
-
-                // Only process focus spells
-                if (cell.element.dataset?.isFocusSpell !== 'true') continue;
-
-                const isDepleted = focusPool?.value === 0;
-
-                // Update data for persistence
-                cell.data.depleted = isDepleted;
-
-                // Update DOM
-                const img = cell.element.querySelector('.hotbar-item');
-                if (isDepleted) {
-                    cell.element.dataset.expended = 'true';
-                    cell.element.classList.add('expended');
-                    if (img) img.classList.add('depleted');
-                } else {
-                    delete cell.element.dataset.expended;
-                    cell.element.classList.remove('expended');
-                    if (img) img.classList.remove('depleted');
-                }
-            }
-        });
-    }
 }
 
