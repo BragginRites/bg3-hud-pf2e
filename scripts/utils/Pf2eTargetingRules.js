@@ -27,9 +27,9 @@ export function needsTargeting({ item, activity = null }) {
         return false;
     }
 
-    // Emanation, burst, cone, line templates don't need target selector
+    // Area shapes are Area-fill, not a skip back to Foundry's template.
     if (target?.type && ['emanation', 'burst', 'cone', 'line'].includes(target.type)) {
-        return false;
+        return true;
     }
 
     // Check if item has specific creature target

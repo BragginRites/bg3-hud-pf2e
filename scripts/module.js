@@ -450,8 +450,7 @@ class Pf2eAdapter {
                         activity: activity
                     });
 
-                    // If user cancelled (empty array returned when cancelled), abort item use
-                    if (!targets || targets.length === 0) {
+                    if (!targets?.placed && (!targets || targets.length === 0)) {
                         log.debug('Target selection cancelled');
                         return;
                     }
