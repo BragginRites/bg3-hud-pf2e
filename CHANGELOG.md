@@ -1,7 +1,12 @@
 ## [Unreleased]
 
+Requires the matching bg3-hud-core update.
+
 ### Changed
-- Focus, Passives, and token image now tell Core what changed instead of walking the HUD tree.
+- **During play**: Focus, passives, and the portrait update the part that changed. The bar does not rebuild.
+- **Areas**: With Target Select on, bursts, cones, lines, and emanations place from the HUD. With it off, the game handles them as before.
+- **NPC passives**: An NPC shows every passive until you save a shorter list.
+- **Two-handed weapons**: A two-handed weapon shows on both hands. The off-hand picture is not saved as a second item.
 
 ## [0.6.0] - 2026-08-25
 
