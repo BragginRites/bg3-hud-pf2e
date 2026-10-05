@@ -3,32 +3,29 @@
  * Styles for PF2e-specific tooltip templates
  */
 
-/* Dark BG3-style variables for inline enrichers */
-.bg3-tooltip.pf2e,
-.bg3-tooltip.pf2e-tooltip {
+/* Dark BG3-style variables for inline enrichers. pf2e lives on the card, not the tooltip root. */
+.bg3-tooltip .pf2e {
     --content-link-background: rgba(0, 0, 0, 0.2);
     --content-link-border-color: rgba(255, 255, 255, 0.2);
     --content-link-text-color: #f0f0f0;
     --color-text-dark-inactive: #888;
+}
 
-    /* Match dnd5e tooltip sizing */
+.bg3-tooltip:has(.bg3-tt-card) {
     max-width: min(640px, 95vw);
 }
 
-/* When pinned/locked, allow scrolling if content exceeds viewport */
-.bg3-tooltip.locked-tooltip.pf2e .pf2e-tooltip-content {
+.bg3-tooltip.locked-tooltip .bg3-tt-card {
     max-height: calc(100vh - 140px);
     overflow: auto;
 }
 
-/* PF2e Tooltip Content Container */
-.bg3-tooltip .pf2e-tooltip-content {
+.bg3-tooltip .bg3-tt-card {
     display: block;
     width: 100%;
 }
 
-/* Header Section */
-.bg3-tooltip .pf2e-tooltip-content .header {
+.bg3-tooltip .bg3-tt-header {
     display: flex;
     flex-direction: column;
     margin-bottom: var(--bg3-tooltip-spacing, 8px);
@@ -36,16 +33,14 @@
     border-bottom: 1px solid var(--bg3-tooltip-border-color, #2f2f2f);
 }
 
-/* Top Section (Icon + Name) */
-.bg3-tooltip .pf2e-tooltip-content .header .top {
+.bg3-tooltip .bg3-tt-top {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-wrap: nowrap;
 }
 
-/* Icon/Image Styling - CRITICAL for maintaining size */
-.bg3-tooltip .pf2e-tooltip-content .header .top img {
+.bg3-tooltip .bg3-tt-portrait {
     width: 32px;
     height: 32px;
     min-width: 32px;
@@ -59,16 +54,14 @@
     display: block;
 }
 
-/* Name Container (Stacked Layout) */
-.bg3-tooltip .pf2e-tooltip-content .header .top .name.name-stacked {
+.bg3-tooltip .bg3-tt-name {
     display: flex;
     flex-direction: column;
     flex: 1;
-    min-width: 0; /* Allow text truncation */
+    min-width: 0;
 }
 
-/* Title */
-.bg3-tooltip .pf2e-tooltip-content .header .top .name .title {
+.bg3-tooltip .bg3-tt-title {
     font-weight: bold;
     font-size: 14px;
     color: var(--bg3-tooltip-text-color, #ddd);
@@ -77,8 +70,7 @@
     word-wrap: break-word;
 }
 
-/* Subtitle */
-.bg3-tooltip .pf2e-tooltip-content .header .top .name .subtitle {
+.bg3-tooltip .bg3-tt-subtitle {
     font-size: 11px;
     color: var(--bg3-tooltip-text-secondary-color, #999);
     margin: 0;
@@ -87,16 +79,14 @@
     word-wrap: break-word;
 }
 
-/* Tooltip Tags Container */
-.bg3-tooltip .pf2e-tooltip-content .tooltip-tags {
+.bg3-tooltip .bg3-tt-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
     margin: var(--bg3-tooltip-spacing, 8px) 0;
 }
 
-/* Individual Tooltip Tag */
-.bg3-tooltip .pf2e-tooltip-content .tooltip-tag {
+.bg3-tooltip .bg3-tt-tag {
     display: inline-block;
     padding: 2px 6px;
     background: rgba(255, 255, 255, 0.1);
@@ -106,22 +96,19 @@
     white-space: nowrap;
 }
 
-/* Action Cost Tag */
-.bg3-tooltip .pf2e-tooltip-content .tooltip-tag.action-cost {
+.bg3-tooltip .bg3-tt-action {
     background: rgba(46, 204, 113, 0.2);
     color: #2ecc71;
     font-weight: 500;
 }
 
-/* Trait Tag */
-.bg3-tooltip .pf2e-tooltip-content .tooltip-tag.trait {
+.bg3-tooltip .bg3-tt-trait {
     background: rgba(255, 255, 255, 0.1);
     color: var(--bg3-tooltip-text-secondary-color, #999);
     text-transform: capitalize;
 }
 
-/* Spell Info Container */
-.bg3-tooltip .pf2e-tooltip-content .tooltip-spell-info {
+.bg3-tooltip .bg3-tt-spell {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -131,42 +118,38 @@
     border-bottom: 1px solid var(--bg3-tooltip-border-color, #2f2f2f);
 }
 
-/* Spell Level */
-.bg3-tooltip .pf2e-tooltip-content .tooltip-spell-info .spell-level {
+.bg3-tooltip .bg3-tt-spell-level {
     font-size: 11px;
     color: var(--bg3-tooltip-text-color, #ddd);
     font-weight: 500;
 }
 
-/* Spell School */
-.bg3-tooltip .pf2e-tooltip-content .tooltip-spell-info .spell-school {
+.bg3-tooltip .bg3-tt-spell-school {
     font-size: 11px;
     color: var(--bg3-tooltip-text-secondary-color, #999);
     text-transform: capitalize;
 }
 
-/* Spell Traditions */
-.bg3-tooltip .pf2e-tooltip-content .tooltip-spell-info .spell-traditions {
+.bg3-tooltip .bg3-tt-spell-traditions {
     font-size: 11px;
     color: var(--bg3-tooltip-text-secondary-color, #999);
 }
 
-/* Description Section */
-.bg3-tooltip .pf2e-tooltip-content .description {
+.bg3-tooltip .bg3-tt-description {
     margin: var(--bg3-tooltip-spacing, 8px) 0;
     color: var(--bg3-tooltip-text-color, #ddd);
     line-height: 1.4;
 }
 
-.bg3-tooltip .pf2e-tooltip-content .description p {
+.bg3-tooltip .bg3-tt-description p {
     margin: 0.5em 0;
 }
 
-.bg3-tooltip .pf2e-tooltip-content .description p:first-child {
+.bg3-tooltip .bg3-tt-description p:first-child {
     margin-top: 0;
 }
 
-.bg3-tooltip .pf2e-tooltip-content .description p:last-child {
+.bg3-tooltip .bg3-tt-description p:last-child {
     margin-bottom: 0;
 }
 
@@ -184,18 +167,18 @@
  */
 
 /* Base styling for all inline enrichers */
-.bg3-tooltip.pf2e span[data-pf2-action],
-.bg3-tooltip.pf2e span[data-pf2-check],
-.bg3-tooltip.pf2e span[data-pf2-dc],
-.bg3-tooltip.pf2e span[data-pf2-effect-area],
-.bg3-tooltip.pf2e span[data-pf2-save],
-.bg3-tooltip.pf2e span[data-pf2-degree-of-success],
-.bg3-tooltip.pf2e a.inline-check,
-.bg3-tooltip.pf2e a.inline-roll,
-.bg3-tooltip.pf2e a.content-link,
-.bg3-tooltip.pf2e .with-repost,
+.bg3-tooltip .pf2e span[data-pf2-action],
+.bg3-tooltip .pf2e span[data-pf2-check],
+.bg3-tooltip .pf2e span[data-pf2-dc],
+.bg3-tooltip .pf2e span[data-pf2-effect-area],
+.bg3-tooltip .pf2e span[data-pf2-save],
+.bg3-tooltip .pf2e span[data-pf2-degree-of-success],
+.bg3-tooltip .pf2e a.inline-check,
+.bg3-tooltip .pf2e a.inline-roll,
+.bg3-tooltip .pf2e a.content-link,
+.bg3-tooltip .pf2e .with-repost,
 /* GM-only visibility notes inside inline enrichers */
-.bg3-tooltip.pf2e span[data-visibility] {
+.bg3-tooltip .pf2e span[data-visibility] {
     display: inline-flex !important;
     align-items: center !important;
     gap: 4px !important;
@@ -213,31 +196,31 @@
 }
 
 /* Icon styling within enrichers */
-.bg3-tooltip.pf2e span[data-pf2-action] i,
-.bg3-tooltip.pf2e span[data-pf2-check] i,
-.bg3-tooltip.pf2e span[data-pf2-dc] i,
-.bg3-tooltip.pf2e span[data-pf2-effect-area] i,
-.bg3-tooltip.pf2e span[data-pf2-save] i,
-.bg3-tooltip.pf2e span[data-pf2-degree-of-success] i,
-.bg3-tooltip.pf2e a.inline-check i,
-.bg3-tooltip.pf2e a.inline-roll i,
-.bg3-tooltip.pf2e a.content-link i,
-.bg3-tooltip.pf2e .with-repost i {
+.bg3-tooltip .pf2e span[data-pf2-action] i,
+.bg3-tooltip .pf2e span[data-pf2-check] i,
+.bg3-tooltip .pf2e span[data-pf2-dc] i,
+.bg3-tooltip .pf2e span[data-pf2-effect-area] i,
+.bg3-tooltip .pf2e span[data-pf2-save] i,
+.bg3-tooltip .pf2e span[data-pf2-degree-of-success] i,
+.bg3-tooltip .pf2e a.inline-check i,
+.bg3-tooltip .pf2e a.inline-roll i,
+.bg3-tooltip .pf2e a.content-link i,
+.bg3-tooltip .pf2e .with-repost i {
     color: var(--color-text-dark-inactive, #888) !important;
     font-size: 0.9em !important;
 }
 
 /* Text/label styling within enrichers */
-.bg3-tooltip.pf2e span[data-pf2-action] > span,
-.bg3-tooltip.pf2e span[data-pf2-check] > span,
-.bg3-tooltip.pf2e span[data-pf2-dc] > span,
-.bg3-tooltip.pf2e span[data-pf2-effect-area] > span,
-.bg3-tooltip.pf2e span[data-pf2-save] > span,
-.bg3-tooltip.pf2e span[data-pf2-degree-of-success] > span,
-.bg3-tooltip.pf2e a.inline-check .label,
-.bg3-tooltip.pf2e a.inline-roll .label,
-.bg3-tooltip.pf2e a.content-link span,
-.bg3-tooltip.pf2e .with-repost > span {
+.bg3-tooltip .pf2e span[data-pf2-action] > span,
+.bg3-tooltip .pf2e span[data-pf2-check] > span,
+.bg3-tooltip .pf2e span[data-pf2-dc] > span,
+.bg3-tooltip .pf2e span[data-pf2-effect-area] > span,
+.bg3-tooltip .pf2e span[data-pf2-save] > span,
+.bg3-tooltip .pf2e span[data-pf2-degree-of-success] > span,
+.bg3-tooltip .pf2e a.inline-check .label,
+.bg3-tooltip .pf2e a.inline-roll .label,
+.bg3-tooltip .pf2e a.content-link span,
+.bg3-tooltip .pf2e .with-repost > span {
     color: var(--content-link-text-color, #f0f0f0) !important;
     font-weight: 500 !important;
 }
@@ -246,54 +229,54 @@
 /* (covered above in the base selector list) */
 
 /* Action glyph (the PF2E action symbol font) */
-.bg3-tooltip.pf2e span[data-pf2-action][data-pf2-glyph]::before {
+.bg3-tooltip .pf2e span[data-pf2-action][data-pf2-glyph]::before {
     font-family: "Pathfinder2eActions", sans-serif !important;
     margin-right: 4px !important;
     color: var(--color-text-dark-inactive, #888) !important;
 }
 
 /* Repost button styling */
-.bg3-tooltip.pf2e i[data-pf2-repost],
-.bg3-tooltip.pf2e .fa-comment-alt {
+.bg3-tooltip .pf2e i[data-pf2-repost],
+.bg3-tooltip .pf2e .fa-comment-alt {
     color: var(--color-text-dark-inactive, #888) !important;
     margin-left: 4px !important;
     opacity: 0.8 !important;
 }
 
 /* Hover state for enrichers */
-.bg3-tooltip.pf2e span[data-pf2-action]:hover,
-.bg3-tooltip.pf2e span[data-pf2-check]:hover,
-.bg3-tooltip.pf2e span[data-pf2-dc]:hover,
-.bg3-tooltip.pf2e span[data-pf2-effect-area]:hover,
-.bg3-tooltip.pf2e span[data-pf2-save]:hover,
-.bg3-tooltip.pf2e span[data-pf2-degree-of-success]:hover,
-.bg3-tooltip.pf2e a.inline-check:hover,
-.bg3-tooltip.pf2e a.inline-roll:hover,
-.bg3-tooltip.pf2e a.content-link:hover,
-.bg3-tooltip.pf2e .with-repost:hover {
+.bg3-tooltip .pf2e span[data-pf2-action]:hover,
+.bg3-tooltip .pf2e span[data-pf2-check]:hover,
+.bg3-tooltip .pf2e span[data-pf2-dc]:hover,
+.bg3-tooltip .pf2e span[data-pf2-effect-area]:hover,
+.bg3-tooltip .pf2e span[data-pf2-save]:hover,
+.bg3-tooltip .pf2e span[data-pf2-degree-of-success]:hover,
+.bg3-tooltip .pf2e a.inline-check:hover,
+.bg3-tooltip .pf2e a.inline-roll:hover,
+.bg3-tooltip .pf2e a.content-link:hover,
+.bg3-tooltip .pf2e .with-repost:hover {
     background: rgba(255, 255, 255, 0.15) !important;
     border-color: rgba(255, 255, 255, 0.3) !important;
 }
 
 /* Ensure content is visible */
-.bg3-tooltip.visible .pf2e-tooltip-content {
+.bg3-tooltip.visible .bg3-tt-card {
     display: block !important;
     visibility: visible !important;
 }
 
 /* Lists within descriptions */
-.bg3-tooltip .pf2e-tooltip-content .description ul,
-.bg3-tooltip .pf2e-tooltip-content .description ol {
+.bg3-tooltip .bg3-tt-description ul,
+.bg3-tooltip .bg3-tt-description ol {
     margin: 0.5em 0;
     padding-left: 1.5em;
 }
 
-.bg3-tooltip .pf2e-tooltip-content .description li {
+.bg3-tooltip .bg3-tt-description li {
     margin: 0.25em 0;
 }
 
 /* Strong/bold text in descriptions */
-.bg3-tooltip .pf2e-tooltip-content .description strong {
+.bg3-tooltip .bg3-tt-description strong {
     color: var(--bg3-tooltip-text-color, #ddd);
     font-weight: 600;
 }

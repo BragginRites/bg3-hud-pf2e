@@ -49,7 +49,7 @@ export async function renderPf2eTooltip(data, options = {}) {
 
         return {
             content: html,
-            classes: ['pf2e', 'chat-card', 'pf2e-tooltip', 'item-tooltip'],
+            classes: [],
             direction: 'UP'
         };
     } catch (error) {

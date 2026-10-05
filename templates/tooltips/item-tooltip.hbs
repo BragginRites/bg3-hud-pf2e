@@ -1,40 +1,37 @@
-<section class="pf2e chat-card content pf2e-tooltip-content">
-    <section class="header">
-        <div class="top">
-            <img src="{{ img }}" alt="{{ name }}">
-            <div class="name name-stacked">
-                <span class="title">{{ name }}</span>
-                <span class="subtitle">{{ subtitle }}</span>
+<section class="pf2e bg3-tt-card">
+    <section class="bg3-tt-header">
+        <div class="bg3-tt-top">
+            <img class="bg3-tt-portrait" src="{{ img }}" alt="{{ name }}">
+            <div class="bg3-tt-name">
+                <span class="bg3-tt-title">{{ name }}</span>
+                <span class="bg3-tt-subtitle">{{ subtitle }}</span>
             </div>
         </div>
     </section>
     {{#if actionCostLabel}}
-    <div class="tooltip-tags">
-        <span class="tooltip-tag action-cost">{{ actionCostLabel }}</span>
+    <div class="bg3-tt-tags">
+        <span class="bg3-tt-tag bg3-tt-action">{{ actionCostLabel }}</span>
     </div>
     {{/if}}
     {{#if traits}}
-    <div class="tooltip-tags">
+    <div class="bg3-tt-tags">
         {{#each traits}}
-        <span class="tooltip-tag trait">{{ this }}</span>
+        <span class="bg3-tt-tag bg3-tt-trait">{{ this }}</span>
         {{/each}}
     </div>
     {{/if}}
     {{#if isSpell}}
-    <div class="tooltip-spell-info">
+    <div class="bg3-tt-spell">
         {{#if level}}
-        <span class="spell-level">Level {{ level }}</span>
+        <span class="bg3-tt-spell-level">Level {{ level }}</span>
         {{/if}}
         {{#if school}}
-        <span class="spell-school">{{ school }}</span>
+        <span class="bg3-tt-spell-school">{{ school }}</span>
         {{/if}}
         {{#if traditions}}
-        <span class="spell-traditions">{{ traditions }}</span>
+        <span class="bg3-tt-spell-traditions">{{ traditions }}</span>
         {{/if}}
     </div>
     {{/if}}
-    <section class="description">{{{ description }}}</section>
+    <section class="bg3-tt-description">{{{ description }}}</section>
 </section>
-
-
-
