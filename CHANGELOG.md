@@ -3,6 +3,7 @@
 Requires **bg3-hud-core 0.7.0**.
 
 ### Changed
+- **Pathfinder generation 7 only**: This update runs on Pathfinder 2e 7. It will not load on generation 8.
 - **During play**: Focus, passives, and the portrait update the part that changed. The bar does not rebuild.
 - **Areas**: With Target Select on, bursts, cones, lines, and emanations place from the HUD. With it off, the game handles them as before.
 - **NPC passives**: An NPC shows every passive until you save a shorter list.
