@@ -1,6 +1,6 @@
-## [Unreleased]
+## [0.7.0] - 2026-10-05
 
-Requires the matching bg3-hud-core update.
+Requires **bg3-hud-core 0.7.0**.
 
 ### Changed
 - **During play**: Focus, passives, and the portrait update the part that changed. The bar does not rebuild.
