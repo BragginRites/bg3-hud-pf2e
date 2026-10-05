@@ -23,17 +23,20 @@ export function needsTargeting({ item, activity = null }) {
     const target = item.system?.target;
 
     // Self-targeting items don't need selector
-    if (target?.value === 'self' || target?.type === 'self') {
+    if (_isSelfTarget(item)) {
         return false;
     }
 
     // Area shapes are Area-fill, not a skip back to Foundry's template.
-    if (target?.type && ['emanation', 'burst', 'cone', 'line'].includes(target.type)) {
+    if (_areaShape(item)) {
         return true;
     }
 
-    // Check if item has specific creature target
-    if (target?.value && typeof target.value === 'number' && target.value > 0) {
+    // A named target ("1 creature") is a creature pick. A numeric value is the older count.
+    if (typeof target?.value === 'string' && target.value.trim()) {
+        return true;
+    }
+    if (typeof target?.value === 'number' && target.value > 0) {
         return true;
     }
 
@@ -87,25 +90,22 @@ export function getTargetRequirements({ item, activity = null }) {
     // Get target configuration
     const target = item.system?.target;
 
-    if (target) {
-        // Target type
-        requirements.targetType = target.type || 'any';
+    const area = _areaShape(item);
+    if (area) {
+        requirements.hasTemplate = true;
+        requirements.template = {
+            type: area.type,
+            size: area.size
+        };
+    } else if (_isSelfTarget(item)) {
+        requirements.targetType = 'self';
+    } else if (target?.value || target?.type === 'creature') {
+        requirements.targetType = 'creature';
+    }
 
-        // Target count
-        const count = target.value || 1;
-        if (typeof count === 'number') {
-            requirements.minTargets = Math.max(1, count);
-            requirements.maxTargets = count;
-        }
-
-        // Template shapes
-        if (['emanation', 'burst', 'cone', 'line'].includes(target.type)) {
-            requirements.hasTemplate = true;
-            requirements.template = {
-                type: target.type,
-                size: target.value || target.distance || 0
-            };
-        }
+    if (target && typeof target.value === 'number') {
+        requirements.minTargets = Math.max(1, target.value);
+        requirements.maxTargets = target.value;
     }
 
     // Calculate range
@@ -129,10 +129,11 @@ export function isValidTargetType({ sourceToken, targetToken, requirements }) {
     }
 
     const targetType = requirements?.targetType;
-    if (!targetType || targetType === 'any') {
+    if (!targetType || targetType === 'any' || targetType === 'creature') {
         return { valid: true, reason: null };
     }
 
+    // Pathfinder only marks a target as self when the item says so.
     if (targetType === 'self') {
         if (targetToken !== sourceToken) {
             return { valid: false, reason: game.i18n.localize('bg3-hud-core.TargetSelector.SelfOnly') };
@@ -140,18 +141,29 @@ export function isValidTargetType({ sourceToken, targetToken, requirements }) {
         return { valid: true, reason: null };
     }
 
-    if (targetType === 'enemy' || targetType === 'other') {
-        if (targetToken === sourceToken) {
-            return { valid: false, reason: game.i18n.localize('bg3-hud-core.TargetSelector.CannotTargetSelf') };
-        }
-        if (targetType === 'enemy' && !_isEnemy(sourceToken, targetToken)) {
-            return { valid: false, reason: game.i18n.localize('bg3-hud-core.TargetSelector.MustBeEnemy') };
-        }
-        return { valid: true, reason: null };
-    }
-
-    // Ally / creature / etc. are not enforced here - leave that to the system workflow
     return { valid: true, reason: null };
+}
+
+const PF2E_AREA_SHAPES = ['burst', 'cone', 'cube', 'cylinder', 'emanation', 'line', 'square'];
+
+function _areaShape(item) {
+    const area = item?.system?.area;
+    if (area?.type && PF2E_AREA_SHAPES.includes(area.type)) {
+        return { type: area.type, size: area.value || 0 };
+    }
+    const legacy = item?.system?.target?.type;
+    if (legacy && PF2E_AREA_SHAPES.includes(legacy)) {
+        const target = item.system.target;
+        return { type: legacy, size: target.value || target.distance || 0 };
+    }
+    return null;
+}
+
+function _isSelfTarget(item) {
+    const target = item?.system?.target;
+    if (!target) return false;
+    if (target.type === 'self') return true;
+    return typeof target.value === 'string' && target.value.trim().toLowerCase() === 'self';
 }
 
 /**
@@ -337,35 +349,6 @@ export function calculateRange({ item, activity = null, actor = null }) {
 }
 
 // ========== Private Helper Functions ==========
-
-/**
- * Check if target is an enemy of source.
- * @param {Token} sourceToken
- * @param {Token} targetToken
- * @returns {boolean}
- * @private
- */
-function _isEnemy(sourceToken, targetToken) {
-    if (!sourceToken || !targetToken) return false;
-
-    const sourceDisp = sourceToken.document.disposition;
-    const targetDisp = targetToken.document.disposition;
-
-    const HOSTILE = CONST.TOKEN_DISPOSITIONS?.HOSTILE ?? -1;
-    const FRIENDLY = CONST.TOKEN_DISPOSITIONS?.FRIENDLY ?? 1;
-
-    // If source is friendly, enemies are hostile
-    if (sourceDisp === FRIENDLY) {
-        return targetDisp === HOSTILE;
-    }
-
-    // If source is hostile, enemies are friendly
-    if (sourceDisp === HOSTILE) {
-        return targetDisp === FRIENDLY;
-    }
-
-    return targetDisp === HOSTILE;
-}
 
 /**
  * Check if target is friendly to source.
