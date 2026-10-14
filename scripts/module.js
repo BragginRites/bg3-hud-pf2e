@@ -12,6 +12,10 @@ import { createPf2eWeaponSetContainer } from './components/containers/Pf2eWeapon
 import { Pf2eInfoContainer } from './components/containers/Pf2eInfoContainer.js';
 import { Pf2eAutoSort } from './features/Pf2eAutoSort.js';
 import { Pf2eAutoPopulate } from './features/Pf2eAutoPopulate.js';
+import { ShieldCoverService, PF2E_SHIELD_COVER_UUIDS } from './features/ShieldCoverService.js';
+import { StrikeCardService } from './features/StrikeCardService.js';
+import { isManagedEquipment, isTwoHanded as hasTwoHandTrait, isNativeTwoHanded } from './features/WeaponHandednessRules.js';
+import { iteratePreparedSlots, resolveCastRank, summarizePreparedSpell } from './features/SpellCastRank.js';
 import { registerSettings } from './utils/settings.js';
 import { renderPf2eTooltip } from './utils/tooltipRenderer.js';
 import { Pf2eMenuBuilder } from './components/menus/Pf2eMenuBuilder.js';
@@ -21,46 +25,6 @@ import { resolvePf2eNotice } from './notice/resolveNotice.js';
 
 const MODULE_ID = 'bg3-hud-pf2e';
 const log = createLogger('bg3-hud-pf2e');
-
-/** Highest spell rank in PF2e (0 = cantrips through 10). */
-const MAX_SPELL_RANK = 10;
-
-/** PF2e system compendium UUIDs referenced by the adapter. */
-const PF2E_UUIDS = {
-    /** "Cover" effect applied by the Take Cover action. */
-    cover: 'Compendium.pf2e.other-effects.Item.I9lfZUiCwMiGogVi',
-    /** "Raised Shield" effect applied by the Raise a Shield action. */
-    raiseShield: 'Compendium.pf2e.equipment-effects.Item.2YgXoHvJfrDHucMr'
-};
-
-/**
- * Iterate the prepared-spell slots of a PF2e spellcasting entry.
- * Walks ranks 0..MAX_SPELL_RANK and yields each occupied preparation with its
- * real slot id. PF2e may store `prepared` as an array OR as an object keyed by
- * slot index - Object.values() alone loses those keys and breaks entry.cast().
- * @param {Object} slots - `entry.system.slots` (keyed `slot0`..`slot10`)
- * @yields {{rank: number, slotId: number, prep: Object}}
- */
-function* iteratePreparedSlots(slots) {
-    if (!slots) return;
-    for (let rank = 0; rank <= MAX_SPELL_RANK; rank++) {
-        const preparedList = slots[`slot${rank}`]?.prepared;
-        if (!preparedList) continue;
-
-        if (Array.isArray(preparedList)) {
-            for (let slotId = 0; slotId < preparedList.length; slotId++) {
-                const prep = preparedList[slotId];
-                if (prep) yield { rank, slotId, prep };
-            }
-        } else {
-            for (const [key, prep] of Object.entries(preparedList)) {
-                if (!prep) continue;
-                const slotId = Number(key);
-                yield { rank, slotId: Number.isFinite(slotId) ? slotId : key, prep };
-            }
-        }
-    }
-}
 
 log.debug('Loading adapter');
 
@@ -196,6 +160,8 @@ class Pf2eAdapter {
         // Initialize PF2e-specific features
         this.autoSort = new Pf2eAutoSort();
         this.autoPopulate = new Pf2eAutoPopulate();
+        this.shieldCover = new ShieldCoverService();
+        this.strikeCard = new StrikeCardService();
 
         // Targeting rules for target selector integration
         this.targetingRules = Pf2eTargetingRules;
@@ -221,7 +187,7 @@ class Pf2eAdapter {
         if (cell.two) return true;
         const item = this._documentFromCell(cell);
         if (!item || item.type !== 'weapon') return false;
-        return item.system?.usage?.value === 'held-in-two-hands' || item.hands === '2';
+        return isNativeTwoHanded(item);
     }
 
     _documentFromCell(cell) {
@@ -244,15 +210,7 @@ class Pf2eAdapter {
     }
 
     _isHeldDocument(item) {
-        if (!item) return false;
-        if (item.type === 'weapon' || item.type === 'shield') return true;
-        if (item.type === 'equipment') {
-            const usage = item.system?.usage?.value || '';
-            if (typeof usage === 'string' && usage.includes('hand')) return true;
-            const traits = item.system?.traits?.value || [];
-            return Array.isArray(traits) && traits.includes('implement');
-        }
-        return false;
+        return isManagedEquipment(item);
     }
 
     /**
@@ -344,7 +302,7 @@ class Pf2eAdapter {
         if (item?.type === 'shield' && actor) {
             const attrShield = actor.attributes?.shield;
             const isThisShieldRaised = !!(attrShield?.itemId === item.id && attrShield?.raised);
-            const coverUuid = PF2E_UUIDS.cover;
+            const coverUuid = PF2E_SHIELD_COVER_UUIDS.cover;
             const hasShieldCover = actor.itemTypes?.effect?.some(
                 (e) => e.sourceId === coverUuid && e.getFlag?.(MODULE_ID, 'shieldCover'),
             );
@@ -356,9 +314,9 @@ class Pf2eAdapter {
                 icon: 'fas fa-shield',
                 onClick: async () => {
                     if (isThisShieldRaised) {
-                        await this._lowerShield(actor);
+                        await this.shieldCover.lowerShield(actor);
                     } else {
-                        await this._raiseShield(actor);
+                        await this.shieldCover.raiseShield(actor);
                     }
                 }
             });
@@ -369,7 +327,7 @@ class Pf2eAdapter {
                 ),
                 icon: 'fas fa-person-shelter',
                 onClick: async () => {
-                    await this._takeCover(actor, item);
+                    await this.shieldCover.takeCover(actor, item);
                 }
             });
         }
@@ -467,7 +425,7 @@ class Pf2eAdapter {
             // Special-case Take Cover action items to avoid dialogs; use shield-derived cover
             const slug = item.system?.slug || item.slug || item.name?.toLowerCase();
             if (item.type === 'action' && slug === 'take-cover') {
-                const applied = await this._applyCoverEffect(item.actor);
+                const applied = await this.shieldCover.applyCoverEffect(item.actor);
                 if (!applied) {
                     ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ActionUnavailable`));
                 }
@@ -479,11 +437,7 @@ class Pf2eAdapter {
             if (item.actor && (item.type === 'weapon' || item.type === 'melee')) {
                 const strike = item.actor.system?.actions?.find?.((s) => s.item?.id === item.id);
                 if (strike) {
-                    const quickRoll = this._tryQuickStrikeRoll(strike, event);
-                    if (quickRoll) return quickRoll;
-
-                    await this._postStrikeChatCard(item.actor, strike);
-                    return;
+                    return this.strikeCard.postStrike(item.actor, strike, event);
                 }
             }
 
@@ -492,11 +446,7 @@ class Pf2eAdapter {
             if (item.actor && item.type === 'shield') {
                 const strike = item.actor.system?.actions?.find?.((s) => s.item?.shield?.id === item.id);
                 if (strike) {
-                    const quickRoll = this._tryQuickStrikeRoll(strike, event);
-                    if (quickRoll) return quickRoll;
-
-                    await this._postStrikeChatCard(item.actor, strike);
-                    return;
+                    return this.strikeCard.postStrike(item.actor, strike, event);
                 }
             }
 
@@ -506,37 +456,24 @@ class Pf2eAdapter {
                 const entry = entryId ? item.actor.items.get(entryId) : null;
 
                 if (entry && typeof entry.cast === 'function') {
-                    const tradition = entry.system?.prepared?.value;
+                    const castOptions = resolveCastRank({
+                        tradition: entry.system?.prepared?.value,
+                        slots: entry.system?.slots ?? {},
+                        itemId: item.id,
+                        baseRank: Number(item.rank) || Number(item.system?.level?.value) || 1
+                    });
 
-                    // For prepared casters, find the FIRST non-expended slot
-                    // (uses real slot ids so heightened ranks consume correctly)
-                    if (tradition === 'prepared') {
-                        const slots = entry.system?.slots ?? {};
-                        for (const { rank, slotId, prep } of iteratePreparedSlots(slots)) {
-                            if (prep?.id === item.id && !prep.expended) {
-                                log.debug('Casting prepared spell at rank', rank, 'slot', slotId);
-                                await entry.cast(item, { rank, slotId, consume: true });
-                                return;
-                            }
-                        }
-                        // All slots expended
+                    // `null` only happens for a prepared caster with no
+                    // remaining (non-expended) slot for this spell.
+                    if (!castOptions) {
                         ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.NoSlotsRemaining`));
                         return;
                     }
 
-                    // Spontaneous/innate: cast at the highest affordable rank when
-                    // the spell was heightened into a higher slot, else base rank.
-                    const baseRank = Number(item.rank) || Number(item.system?.level?.value) || 1;
-                    const slots = entry.system?.slots ?? {};
-                    let castRank = baseRank;
-                    for (let r = MAX_SPELL_RANK; r >= baseRank; r--) {
-                        const slot = slots[`slot${r}`];
-                        if (slot && (slot.value ?? 0) > 0) {
-                            castRank = r;
-                            break;
-                        }
+                    if (castOptions.slotId !== undefined) {
+                        log.debug('Casting prepared spell at rank', castOptions.rank, 'slot', castOptions.slotId);
                     }
-                    await entry.cast(item, { rank: castRank, consume: true });
+                    await entry.cast(item, castOptions);
                     return;
                 }
 
@@ -604,11 +541,8 @@ class Pf2eAdapter {
 
         log.debug('Using strike:', strike.label);
 
-        const quickRoll = this._tryQuickStrikeRoll(strike, event);
-        if (quickRoll) return quickRoll;
-
-        // Post the strike chat card
-        await this._postStrikeChatCard(actor, strike);
+        // Post the strike chat card (or quick-roll a variant on modifier-held clicks)
+        return this.strikeCard.postStrike(actor, strike, event);
     }
 
     /**
@@ -678,7 +612,7 @@ class Pf2eAdapter {
         };
 
         if (item.type === 'weapon') {
-            cellData.two = item.system?.usage?.value === 'held-in-two-hands' || item.hands === '2';
+            cellData.two = isNativeTwoHanded(item);
             cellData.usage = item.system?.usage?.value;
         } else if (item.type === 'equipment') {
             cellData.usage = item.system?.usage?.value;
@@ -767,18 +701,9 @@ class Pf2eAdapter {
                 }
 
                 const slots = entry.system?.slots ?? {};
-                let totalPreps = 0;
-                let remainingCasts = 0;
 
                 // Count all preparations of this spell across all ranks
-                for (const { prep } of iteratePreparedSlots(slots)) {
-                    if (prep?.id === spell.id) {
-                        totalPreps++;
-                        if (!prep.expended) {
-                            remainingCasts++;
-                        }
-                    }
-                }
+                const { totalPreps, remainingCasts } = summarizePreparedSpell({ slots, spellId: spell.id });
 
                 // Return Item type with uses counter (consolidated approach)
                 if (totalPreps > 0) {
@@ -921,15 +846,10 @@ class Pf2eAdapter {
                     // For prepared casters, look up which slot the spell is in
                     if (tradition === 'prepared') {
                         const slots = entry.system?.slots ?? {};
-                        for (const { rank, prep } of iteratePreparedSlots(slots)) {
-                            if (prep?.id === spellId) {
-                                if (preparedRank === null) preparedRank = rank;
-                                totalPreps++;
-                                if (prep.expended === true) {
-                                    expendedPreps++;
-                                }
-                            }
-                        }
+                        const summary = summarizePreparedSpell({ slots, spellId });
+                        preparedRank = summary.rank;
+                        totalPreps = summary.totalPreps;
+                        expendedPreps = summary.totalPreps - summary.remainingCasts;
                     }
                 }
             }
@@ -956,10 +876,7 @@ class Pf2eAdapter {
      * @returns {Object} Display settings object
      */
     getDisplaySettings() {
-        return {
-            showItemNames: game.settings.get(MODULE_ID, 'showItemNames'),
-            showItemUses: game.settings.get(MODULE_ID, 'showItemUses')
-        };
+        return ui.BG3HOTBAR.api.getDisplaySettings(MODULE_ID);
     }
 
     /**
@@ -973,116 +890,6 @@ class Pf2eAdapter {
         return null;
     }
 
-
-    /**
-     * Raise Shield via PF2e action macro
-     * @param {Actor} actor
-     * @returns {Promise<void>}
-     * @private
-     */
-    async _raiseShield(actor) {
-        const raiseAction = game.pf2e?.actions?.raiseAShield;
-        if (!raiseAction) {
-            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ActionUnavailable`));
-            return;
-        }
-        await raiseAction({ actors: [actor] });
-    }
-
-    /**
-     * Lower Shield by removing the Raise a Shield effect
-     * @param {Actor} actor
-     * @returns {Promise<void>}
-     * @private
-     */
-    async _lowerShield(actor) {
-        const raiseEffect = actor.itemTypes?.effect?.find(
-            (e) =>
-                e.slug === 'raise-a-shield' ||
-                e.slug === 'effect-raise-a-shield' ||
-                e.sourceId === PF2E_UUIDS.raiseShield,
-        );
-        if (!raiseEffect) return;
-        try {
-            await raiseEffect.delete();
-        } catch (error) {
-            log.error('Failed to lower shield', { actorId: actor.id }, error);
-            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ActionFailed`));
-        }
-    }
-
-    /**
-     * Take Cover via PF2e action macro
-     * @param {Actor} actor
-     * @returns {Promise<void>}
-     * @private
-     */
-    async _takeCover(actor, shieldOverride = null) {
-        const applied = await this._applyCoverEffect(actor, shieldOverride);
-        if (!applied) {
-            ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.Notifications.ActionUnavailable`));
-        }
-    }
-
-    /**
-     * Apply cover effect based on held shield (tower = greater, otherwise standard)
-     * @param {Actor} actor
-     * @param {Item} shieldOverride
-     * @returns {Promise<boolean>} true if applied
-     * @private
-     */
-    async _applyCoverEffect(actor, shieldOverride = null) {
-        if (!actor) return false;
-
-        const shield = shieldOverride ?? actor.heldShield ?? null;
-        const baseItem = shield?.system?.baseItem ?? '';
-        const hasTowerTrait = !!shield?.system?.traits?.value?.some?.((t) => t === 'tower' || t === 'tower-shield');
-        const isTowerShield = hasTowerTrait || ['tower-shield', 'fortress-shield'].includes(baseItem);
-        const coverSelection = isTowerShield ? { bonus: 4, level: 'greater' } : { bonus: 2, level: 'standard' };
-
-        const coverUuid = PF2E_UUIDS.cover;
-        const existing = actor.itemTypes?.effect?.find(
-            (e) => e.sourceId === coverUuid && e.getFlag?.(MODULE_ID, 'shieldCover'),
-        );
-        if (existing) {
-            await existing.delete();
-            return true;
-        }
-
-        try {
-            const effect = await fromUuid(coverUuid);
-            if (!effect) return false;
-
-            const data = { ...effect.toObject(), _id: null };
-
-            // Pre-select the cover level to avoid prompting the user
-            const rule = Array.isArray(data.system?.rules)
-                ? data.system.rules.find((r) => r?.key === 'ChoiceSet')
-                : null;
-            if (rule) {
-                rule.selection = coverSelection;
-            }
-
-            // Tag tower shields for parity with system behavior
-            if (isTowerShield && data.system?.traits) {
-                const otherTags = Array.isArray(data.system.traits.otherTags) ? data.system.traits.otherTags : [];
-                data.system.traits.otherTags = Array.from(new Set([...otherTags, 'tower-shield']));
-            }
-
-            data.flags = data.flags ?? {};
-            data.flags[MODULE_ID] = {
-                ...(data.flags[MODULE_ID] ?? {}),
-                shieldCover: true,
-            };
-
-            await actor.createEmbeddedDocuments('Item', [data]);
-            return true;
-        } catch (error) {
-            log.warn('Failed to apply cover effect', error);
-            return false;
-        }
-    }
-
     /**
      * Can this weapon switch between 1H and 2H?
      * @param {Item} item
@@ -1092,13 +899,19 @@ class Pf2eAdapter {
     _canToggleGrip(item) {
         if (!item || item.type !== 'weapon') return false;
         const traits = item.system?.traits?.value || [];
-        const hasTwoHandVariant = traits.some((trait) => typeof trait === 'string' && trait.startsWith('two-hand'));
+        const hasTwoHandVariant = hasTwoHandTrait(item);
         const hasVersatile = traits.some((trait) => typeof trait === 'string' && trait.startsWith('versatile'));
         return hasTwoHandVariant || hasVersatile;
     }
 
     /**
-     * Determine the next hands-held state for a weapon (flip 1 <-> 2)
+     * Determine the next hands-held state for a weapon (flip 1 <-> 2).
+     * Deliberately NOT the shared trait-aware WeaponHandednessRules.getHandsHeld:
+     * this is a user-driven explicit toggle ("switch to the other grip"), so it
+     * must always invert the current explicit state. getHandsHeld instead
+     * computes the trait-based *default* grip, which can equal the current
+     * state (e.g. a two-hand-trait weapon explicitly held 1H) and would fail
+     * to flip anything in that case.
      * @param {Item} item
      * @returns {number}
      * @private
@@ -1131,84 +944,13 @@ class Pf2eAdapter {
 
         // Slot fill / off-hand stash follows current grip (e.g. Longsword versatile → 2H)
         try {
-            const weaponSets = ui.BG3HUD_APP?.components?.weaponSets;
+            const weaponSets = ui.BG3HOTBAR.api.getWeaponSetComponent();
             if (weaponSets && typeof weaponSets.refreshTwoHandedDisplay === 'function') {
                 await weaponSets.refreshTwoHandedDisplay();
             }
         } catch (error) {
             log.warn('Grip changed but weapon-set refresh failed', { itemId: item.id, hands }, error);
         }
-    }
-
-    /**
-     * Quick-roll a strike variant when a modifier key is held (Shift = strike 0,
-     * Ctrl = strike 1 / first MAP, Alt = strike 2 / second MAP).
-     * Passes a sanitized event so PF2e does not reinterpret the modifier as a
-     * Roll Mode override (e.g. Ctrl = Blind roll).
-     * @param {Object} strike - The strike action from actor.system.actions
-     * @param {MouseEvent} event - The triggering event
-     * @returns {Promise|null} The variant roll promise if a modifier matched, else null
-     * @private
-     */
-    _tryQuickStrikeRoll(strike, event) {
-        if (!event.shiftKey && !event.ctrlKey && !event.altKey) return null;
-
-        const options = {
-            event: {
-                shiftKey: false,
-                ctrlKey: false,
-                altKey: false,
-                metaKey: false,
-                type: 'click',
-                preventDefault: () => { },
-                stopPropagation: () => { }
-            }
-        };
-
-        if (event.shiftKey) return strike.variants[0]?.roll(options);
-        if (event.ctrlKey) return strike.variants[1]?.roll(options);
-        if (event.altKey) return strike.variants[2]?.roll(options);
-        return null;
-    }
-
-    /**
-     * Post a strike chat card directly to chat
-     * This bypasses the AttackPopout dialog and shows inline MAP buttons
-     * @param {Actor} actor - The actor making the strike
-     * @param {Object} strike - The strike action from actor.system.actions
-     * @returns {Promise<void>}
-     * @private
-     */
-    async _postStrikeChatCard(actor, strike) {
-        const meleeOrRanged = strike.item.isMelee ? 'melee' : 'ranged';
-        const identifier = `${strike.item.id}.${strike.slug}.${meleeOrRanged}`;
-
-        // Only pass essential data - no description to keep the card clean
-        const templateData = { actor, strike, identifier };
-
-        // Use PF2e's strike-card template
-        const content = await foundry.applications.handlebars.renderTemplate(
-            'systems/pf2e/templates/chat/strike-card.hbs',
-            templateData
-        );
-
-        const token = actor.token ?? actor.getActiveTokens(true, true).shift() ?? null;
-        const chatData = {
-            speaker: ChatMessage.getSpeaker({ actor, token }),
-            content,
-            style: CONST.CHAT_MESSAGE_STYLES.OTHER,
-        };
-
-        // Respect roll mode settings
-        const rollMode = game.settings.get('core', 'rollMode');
-        if (['gmroll', 'blindroll'].includes(rollMode)) {
-            chatData.whisper = ChatMessage.getWhisperRecipients('GM').map((u) => u.id);
-        }
-        if (rollMode === 'blindroll') {
-            chatData.blind = true;
-        }
-
-        await ChatMessage.create(chatData);
     }
 
 }

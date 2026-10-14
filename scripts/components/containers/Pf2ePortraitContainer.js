@@ -388,6 +388,9 @@ export async function createPf2ePortraitContainer() {
             const healthElement = await this.components.health.render();
             this.element.appendChild(healthElement);
 
+            this._applyPortraitVisibility();
+            this._applyPortraitBorder();
+
             return this.element;
         }
 

@@ -8,6 +8,7 @@
  */
 
 import { createLogger } from '/modules/bg3-hud-core/scripts/utils/logger.js';
+import { isManagedEquipment, isTwoHanded as hasTwoHandTrait, isNativeTwoHanded, getHandsHeld } from '../../features/WeaponHandednessRules.js';
 
 const log = createLogger('bg3-hud-pf2e');
 
@@ -33,8 +34,7 @@ export async function createPf2eWeaponSetContainer() {
             if (!item || item.type !== 'weapon') return false;
 
             // True 2H-only weapons
-            if (item.system?.usage?.value === 'held-in-two-hands') return true;
-            if (item.hands === '2') return true;
+            if (isNativeTwoHanded(item)) return true;
 
             if (respectGrip) {
                 const handsHeld = Number(item.system?.equipped?.handsHeld) || 0;
@@ -45,10 +45,7 @@ export async function createPf2eWeaponSetContainer() {
             }
 
             // Not gripped yet (or grip ignored on inactive sets): two-hand-dX defaults to both slots
-            const traits = item.system?.traits?.value ?? [];
-            return Array.isArray(traits) && traits.some(
-                (trait) => typeof trait === 'string' && trait.startsWith('two-hand')
-            );
+            return hasTwoHandTrait(item);
         }
 
         /**
@@ -418,41 +415,39 @@ export async function createPf2eWeaponSetContainer() {
             const currentActiveIndex = this.getActiveSet();
             const currentGrid = this.gridContainers[currentActiveIndex];
 
-            const resolveSetItems = async (grid) => {
-                if (!grid?.cells) return [];
-                const items = [];
-                for (const cell of grid.cells) {
-                    const cellData = cell?.data;
-                    if (!cellData?.uuid || cellData.isTwoHandedDuplicate) continue;
-                    const item = await this._resolveActorItem(cellData.uuid);
-                    if (!item || !this._isManagedEquipment(item)) continue;
-                    items.push(item);
-                }
-                return items;
-            };
+            // Current set's items go worn (unequip); then the entering set's
+            // direct items override with held (equip overrides worn for any
+            // item shared between the two sets).
+            const desiredStates = await this._collectDesiredStates(currentGrid, { active: false });
+            await this._collectDesiredStates(setContainer, { active: true }, desiredStates);
 
-            const resolveStashedItems = async (grid) => {
-                if (!grid?.cells) return [];
-                const items = [];
-                for (const cell of grid.cells) {
-                    const stash = cell?.data?.stashedOffHand;
-                    if (!stash?.uuid) continue;
-                    const item = await this._resolveActorItem(stash.uuid);
-                    if (!item || !this._isManagedEquipment(item)) continue;
-                    items.push(item);
-                }
-                return items;
-            };
+            await this._applyEquipStates(desiredStates);
 
-            const [itemsToUnequip, itemsToEquip, stashedLeaving, stashedEntering] = await Promise.all([
-                resolveSetItems(currentGrid),
-                resolveSetItems(setContainer),
-                resolveStashedItems(currentGrid),
-                resolveStashedItems(setContainer),
-            ]);
+            // Re-apply remembered 2H visuals for the set we are entering
+            await this._updateSetTwoHandedWeapons(setContainer, setIndex);
+        }
 
-            const desiredStates = new Map();
-            for (const item of itemsToUnequip) {
+        /**
+         * Build desired carryType/handsHeld/inSlot states for every managed
+         * item in a single weapon-set grid, merging them into desiredStates
+         * (keyed by item.id - later writes win).
+         * - Stashed off-hands are always worn (they're remembered, not held).
+         * - Direct (non-duplicate) slot items are held + hands-aware when the
+         *   grid is `active`, or worn when it is being deactivated.
+         * @param {GridContainer} grid
+         * @param {{active: boolean}} options
+         * @param {Map} [desiredStates]
+         * @returns {Promise<Map>}
+         * @private
+         */
+        async _collectDesiredStates(grid, { active }, desiredStates = new Map()) {
+            if (!grid?.cells) return desiredStates;
+
+            for (const cell of grid.cells) {
+                const stash = cell?.data?.stashedOffHand;
+                if (!stash?.uuid) continue;
+                const item = await this._resolveActorItem(stash.uuid);
+                if (!item || !isManagedEquipment(item)) continue;
                 desiredStates.set(item.id, {
                     item,
                     carryType: 'worn',
@@ -460,23 +455,40 @@ export async function createPf2eWeaponSetContainer() {
                     inSlot: false,
                 });
             }
-            // Keep stashed off-hands worn while their set is inactive / 2H
-            for (const item of [...stashedLeaving, ...stashedEntering]) {
-                desiredStates.set(item.id, {
-                    item,
-                    carryType: 'worn',
-                    handsHeld: 0,
-                    inSlot: false,
-                });
+
+            for (const cell of grid.cells) {
+                const cellData = cell?.data;
+                if (!cellData?.uuid || cellData.isTwoHandedDuplicate) continue;
+                const item = await this._resolveActorItem(cellData.uuid);
+                if (!item || !isManagedEquipment(item)) continue;
+                desiredStates.set(item.id, active
+                    ? {
+                        item,
+                        carryType: 'held',
+                        handsHeld: this._getHandsHeldForSet(item, grid),
+                        inSlot: true,
+                    }
+                    : {
+                        item,
+                        carryType: 'worn',
+                        handsHeld: 0,
+                        inSlot: false,
+                    });
             }
-            for (const item of itemsToEquip) {
-                desiredStates.set(item.id, {
-                    item,
-                    carryType: 'held',
-                    handsHeld: this._getHandsHeldForSet(item, setContainer),
-                    inSlot: true,
-                });
-            }
+
+            return desiredStates;
+        }
+
+        /**
+         * Diff desiredStates against each item's live system.equipped and
+         * batch any changes into a single updateEmbeddedDocuments call.
+         * @param {Map} desiredStates
+         * @returns {Promise<void>}
+         * @private
+         */
+        async _applyEquipStates(desiredStates) {
+            const actor = this.actor;
+            if (!actor) return;
 
             const updates = [];
             for (const { item, carryType, handsHeld, inSlot } of desiredStates.values()) {
@@ -500,26 +512,6 @@ export async function createPf2eWeaponSetContainer() {
             if (updates.length) {
                 await actor.updateEmbeddedDocuments('Item', updates);
             }
-
-            // Re-apply remembered 2H visuals for the set we are entering
-            await this._updateSetTwoHandedWeapons(setContainer, setIndex);
-        }
-
-        /**
-         * @param {Item} item
-         * @returns {boolean}
-         * @private
-         */
-        _isManagedEquipment(item) {
-            if (!item) return false;
-            if (item.type === 'weapon' || item.type === 'shield') return true;
-            if (item.type === 'equipment') {
-                const usage = item.system?.usage?.value || '';
-                if (typeof usage === 'string' && usage.includes('hand')) return true;
-                const traits = item.system?.traits?.value || [];
-                return Array.isArray(traits) && traits.includes('implement');
-            }
-            return false;
         }
 
         /**
@@ -543,7 +535,7 @@ export async function createPf2eWeaponSetContainer() {
                 return 2;
             }
 
-            return this._getHandsHeld(item);
+            return getHandsHeld(item);
         }
 
         /**
@@ -560,30 +552,6 @@ export async function createPf2eWeaponSetContainer() {
                 return !!itemId && item.id === itemId;
             }
             return false;
-        }
-
-        /**
-         * Hands to hold when no set-local 2H memory applies.
-         * @param {Item} item
-         * @returns {number}
-         * @private
-         */
-        _getHandsHeld(item) {
-            if (!item) return 0;
-            if (item.type !== 'weapon') return 1;
-
-            if (item.system?.usage?.value === 'held-in-two-hands' || item.hands === '2') return 2;
-
-            const current = Number(item.system?.equipped?.handsHeld) || 0;
-            if (current === 2) return 2;
-
-            const traits = item.system?.traits?.value ?? [];
-            const hasTwoHandTrait = Array.isArray(traits) && traits.some(
-                (trait) => typeof trait === 'string' && trait.startsWith('two-hand')
-            );
-            if (hasTwoHandTrait && current !== 1) return 2;
-
-            return 1;
         }
 
         /**
@@ -632,55 +600,8 @@ export async function createPf2eWeaponSetContainer() {
             const grid = this.gridContainers[active];
             if (!grid?.cells) return;
 
-            const desiredStates = new Map();
-
-            for (const cell of grid.cells) {
-                const stash = cell?.data?.stashedOffHand;
-                if (!stash?.uuid) continue;
-                const item = await this._resolveActorItem(stash.uuid);
-                if (!item || !this._isManagedEquipment(item)) continue;
-                desiredStates.set(item.id, {
-                    item,
-                    carryType: 'worn',
-                    handsHeld: 0,
-                    inSlot: false,
-                });
-            }
-
-            for (const cell of grid.cells) {
-                const cellData = cell?.data;
-                if (!cellData?.uuid || cellData.isTwoHandedDuplicate) continue;
-                const item = await this._resolveActorItem(cellData.uuid);
-                if (!item || !this._isManagedEquipment(item)) continue;
-                desiredStates.set(item.id, {
-                    item,
-                    carryType: 'held',
-                    handsHeld: this._getHandsHeldForSet(item, grid),
-                    inSlot: true,
-                });
-            }
-
-            const updates = [];
-            for (const { item, carryType, handsHeld, inSlot } of desiredStates.values()) {
-                if (!item?.id || !actor.items.has(item.id)) continue;
-                const equipped = item.system?.equipped || {};
-                if (
-                    equipped.carryType !== carryType ||
-                    equipped.handsHeld !== handsHeld ||
-                    equipped.inSlot !== inSlot
-                ) {
-                    updates.push({
-                        _id: item.id,
-                        'system.equipped.carryType': carryType,
-                        'system.equipped.handsHeld': handsHeld,
-                        'system.equipped.inSlot': inSlot,
-                    });
-                }
-            }
-
-            if (updates.length) {
-                await actor.updateEmbeddedDocuments('Item', updates);
-            }
+            const desiredStates = await this._collectDesiredStates(grid, { active: true });
+            await this._applyEquipStates(desiredStates);
         }
     };
 }

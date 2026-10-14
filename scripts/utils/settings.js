@@ -3,7 +3,7 @@ import { createSettingsSubmenu } from '/modules/bg3-hud-core/scripts/api/Setting
 const MODULE_ID = 'bg3-hud-pf2e';
 
 const openAutoPopulateConfiguration = async () => {
-  const adapter = ui.BG3HOTBAR?.registry?.activeAdapter;
+  const adapter = ui.BG3HOTBAR?.api?.getActiveAdapter();
   if (!adapter || !adapter.autoPopulate) {
     ui.notifications.error(
       game.i18n.localize(`${MODULE_ID}.Notifications.AutoPopulateSystemNotAvailable`),

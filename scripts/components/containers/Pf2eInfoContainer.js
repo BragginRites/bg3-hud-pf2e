@@ -17,6 +17,22 @@ const ABILITY_ICONS = {
 };
 
 /**
+ * Map a PF2e proficiency rank (0 = untrained .. 4 = legendary) to the CSS
+ * class used to color its d20 modifier badge.
+ * @param {number} rank
+ * @returns {string|null} The class name, or null if the rank has no styling (e.g. untrained).
+ */
+function getProficiencyRankClass(rank) {
+  switch (rank) {
+    case 4: return 'legendary';
+    case 3: return 'master';
+    case 2: return 'expertise';
+    case 1: return 'proficient';
+    default: return null;
+  }
+}
+
+/**
  * PF2e Info Container
  * Displays ability scores (header), skills (3-col grid), and saving throws (Fort/Ref/Will)
  */
@@ -176,15 +192,8 @@ export class Pf2eInfoContainer extends InfoContainer {
 
         // d20 Modifier
         const modifierWrapper = this.createElement('div', ['bg3-info-d20-modifier']);
-        if (entry.proficiency === 4) {
-          modifierWrapper.classList.add('legendary');
-        } else if (entry.proficiency === 3) {
-          modifierWrapper.classList.add('master');
-        } else if (entry.proficiency === 2) {
-          modifierWrapper.classList.add('expertise');
-        } else if (entry.proficiency === 1) {
-          modifierWrapper.classList.add('proficient');
-        }
+        const skillProficiencyClass = getProficiencyRankClass(entry.proficiency);
+        if (skillProficiencyClass) modifierWrapper.classList.add(skillProficiencyClass);
 
         const d20Icon = this.createElement('i', ['fas', 'fa-dice-d20', 'bg3-d20-icon']);
         const d20Value = this.createElement('span', ['bg3-d20-value']);
@@ -258,10 +267,8 @@ export class Pf2eInfoContainer extends InfoContainer {
 
       // d20 with modifier overlay
       const d20Wrapper = this.createElement('div', ['bg3-info-d20-modifier', 'bg3-info-save-d20']);
-      if (rank === 4) d20Wrapper.classList.add('legendary');
-      else if (rank === 3) d20Wrapper.classList.add('master');
-      else if (rank === 2) d20Wrapper.classList.add('expertise');
-      else if (rank === 1) d20Wrapper.classList.add('proficient');
+      const saveProficiencyClass = getProficiencyRankClass(rank);
+      if (saveProficiencyClass) d20Wrapper.classList.add(saveProficiencyClass);
 
       const d20Icon = this.createElement('i', ['fas', 'fa-dice-d20', 'bg3-d20-icon']);
       const d20Value = this.createElement('span', ['bg3-d20-value']);
