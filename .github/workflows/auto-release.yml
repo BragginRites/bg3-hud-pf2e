@@ -80,7 +80,11 @@ jobs:
           zip -r bg3-hud-pf2e.zip . \
             -x "*.git*" \
                ".github*" \
-               "*.vscode*"
+               "*.vscode*" \
+               "node_modules/*" \
+               "package.json" \
+               "*.test.js" \
+               "testFoundryCoreStub.mjs"
 
       - name: Create GitHub Release
         if: steps.tag.outputs.exists != 'true'

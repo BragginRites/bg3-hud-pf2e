@@ -68,46 +68,6 @@ export async function createPf2eWeaponSetContainer() {
         }
 
         /**
-         * @returns {Promise<HTMLElement>}
-         */
-        async render() {
-            await super.render();
-            this._wrapGridContainerRenders();
-            await this._updateTwoHandedWeapons();
-            return this.element;
-        }
-
-        /**
-         * Keep 2H duplicates after GridContainer re-renders (actor updates, etc.)
-         * @private
-         */
-        _wrapGridContainerRenders() {
-            for (let setIndex = 0; setIndex < this.gridContainers.length; setIndex++) {
-                const gridContainer = this.gridContainers[setIndex];
-                if (gridContainer._bg3TwoHandedWrapped) continue;
-
-                const weaponSetContainer = this;
-                const index = setIndex;
-                const originalRender = gridContainer.render.bind(gridContainer);
-                gridContainer.render = async function () {
-                    const result = await originalRender();
-                    await weaponSetContainer._updateSetTwoHandedWeapons(this, index);
-                    return result;
-                };
-                gridContainer._bg3TwoHandedWrapped = true;
-            }
-        }
-
-        /**
-         * @private
-         */
-        async _updateTwoHandedWeapons() {
-            for (let setIndex = 0; setIndex < this.gridContainers.length; setIndex++) {
-                await this._updateSetTwoHandedWeapons(this.gridContainers[setIndex], setIndex);
-            }
-        }
-
-        /**
          * Resolve a cell/stash uuid to an Item that exists on this.actor.
          * fromUuid alone can return a foreign/base-actor doc whose id is not in
          * this actor's EmbeddedCollection (common with token actor swaps).
@@ -313,6 +273,13 @@ export async function createPf2eWeaponSetContainer() {
         /**
          * Sync visual 2H state from remembered / inherent weapon data.
          * Does not clear a remembered 2H layout when the set is inactive.
+         *
+         * NOT using the base class's default (left-cell-only duplicate+lock):
+         * PF2e needs grip memory (stashed off-hand, remembered gripHands),
+         * and a two-handed weapon can be gripped in either slot (bidirectional
+         * left-or-right check), not just the left one. This is a genuine
+         * behavior difference, same category as dnd5e's _isWeaponOrShield
+         * being deliberately left unmerged from a shared helper.
          * @param {GridContainer} gridContainer
          * @param {number} [setIndex]
          * @private
@@ -361,46 +328,12 @@ export async function createPf2eWeaponSetContainer() {
         }
 
         /**
-         * @param {number} setIndex
-         * @param {Object} newData
+         * i18n key used by shouldPreventDrop() when warning about a locked slot.
+         * @returns {string}
+         * @private
          */
-        async updateSet(setIndex, newData) {
-            await super.updateSet(setIndex, newData);
-            const gridContainer = this.gridContainers[setIndex];
-            if (gridContainer) {
-                await this._updateSetTwoHandedWeapons(gridContainer, setIndex);
-            }
-        }
-
-        /**
-         * @param {GridCell} cell
-         * @returns {boolean}
-         */
-        isCellLocked(cell) {
-            return cell.element?.dataset?.locked === 'true';
-        }
-
-        /**
-         * @param {GridCell} targetCell
-         * @returns {boolean}
-         */
-        shouldPreventDrop(targetCell) {
-            if (this.isCellLocked(targetCell)) {
-                ui.notifications.warn(game.i18n.localize('bg3-hud-pf2e.Notifications.SlotOccupiedByTwoHandedWeapon'));
-                return true;
-            }
-            return false;
-        }
-
-        /**
-         * @param {number} setIndex
-         * @param {string} slotKey
-         */
-        async onCellUpdated(setIndex, slotKey) {
-            const gridContainer = this.gridContainers[setIndex];
-            if (gridContainer) {
-                await this._updateSetTwoHandedWeapons(gridContainer, setIndex);
-            }
+        _lockedSlotWarningKey() {
+            return 'bg3-hud-pf2e.Notifications.SlotOccupiedByTwoHandedWeapon';
         }
 
         /**

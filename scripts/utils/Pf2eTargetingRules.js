@@ -200,44 +200,14 @@ export function getTargetInfo({ sourceToken, targetToken, item, activity = null 
         return info;
     }
 
-    // Calculate distance using edge-to-edge grid-based measurement
-    // This matches how core's TargetSelectorMath calculates distance
+    // Calculate distance using core's shared edge-to-edge grid-distance math
+    // (bg3-hud-core TargetSelectorMath, reached through the BG3HOTBAR API seam)
+    // instead of re-deriving the same Chebyshev grid-square algorithm here.
     const gridDistance = canvas.grid.distance || 5;
-    const gridSize = canvas.grid.size;
+    const gridSquareDistance = ui.BG3HOTBAR?.api?.calculateTokenDistance(sourceToken, targetToken) ?? 0;
 
-    // Get token bounds in grid coordinates
-    const sourceBounds = {
-        left: Math.floor(sourceToken.document.x / gridSize),
-        right: Math.floor(sourceToken.document.x / gridSize) + (sourceToken.document.width || 1) - 1,
-        top: Math.floor(sourceToken.document.y / gridSize),
-        bottom: Math.floor(sourceToken.document.y / gridSize) + (sourceToken.document.height || 1) - 1
-    };
-    const targetBounds = {
-        left: Math.floor(targetToken.document.x / gridSize),
-        right: Math.floor(targetToken.document.x / gridSize) + (targetToken.document.width || 1) - 1,
-        top: Math.floor(targetToken.document.y / gridSize),
-        bottom: Math.floor(targetToken.document.y / gridSize) + (targetToken.document.height || 1) - 1
-    };
-
-    // Find minimum Chebyshev distance between any grid squares
-    let minGridDistance = Infinity;
-    for (let sx = sourceBounds.left; sx <= sourceBounds.right; sx++) {
-        for (let sy = sourceBounds.top; sy <= sourceBounds.bottom; sy++) {
-            for (let tx = targetBounds.left; tx <= targetBounds.right; tx++) {
-                for (let ty = targetBounds.top; ty <= targetBounds.bottom; ty++) {
-                    const dx = Math.abs(sx - tx);
-                    const dy = Math.abs(sy - ty);
-                    const squareDistance = Math.max(dx, dy);
-                    if (squareDistance < minGridDistance) {
-                        minGridDistance = squareDistance;
-                    }
-                }
-            }
-        }
-    }
-
-    // If tokens overlap (same token or adjacent), distance is 0
-    info.distance = minGridDistance === Infinity ? 0 : minGridDistance * gridDistance;
+    // info.distance stays in scene units (feet), matching this function's existing contract
+    info.distance = Number.isFinite(gridSquareDistance) ? gridSquareDistance * gridDistance : 0;
 
     // Check range - rangeInfo.range is in grid squares, convert distance to squares for comparison
     const rangeInfo = calculateRange({ item, activity, actor: item?.actor });

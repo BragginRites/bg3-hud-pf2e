@@ -1,4 +1,5 @@
 import { createLogger } from '/modules/bg3-hud-core/scripts/utils/logger.js';
+import { classifyShieldCover } from './ShieldCoverRules.js';
 
 const MODULE_ID = 'bg3-hud-pf2e';
 const log = createLogger(MODULE_ID);
@@ -10,6 +11,8 @@ export const PF2E_SHIELD_COVER_UUIDS = {
     /** "Raised Shield" effect applied by the Raise a Shield action. */
     raiseShield: 'Compendium.pf2e.equipment-effects.Item.2YgXoHvJfrDHucMr'
 };
+
+export { classifyShieldCover };
 
 /**
  * PF2e Shield + Cover Service
@@ -75,10 +78,7 @@ export class ShieldCoverService {
         if (!actor) return false;
 
         const shield = shieldOverride ?? actor.heldShield ?? null;
-        const baseItem = shield?.system?.baseItem ?? '';
-        const hasTowerTrait = !!shield?.system?.traits?.value?.some?.((t) => t === 'tower' || t === 'tower-shield');
-        const isTowerShield = hasTowerTrait || ['tower-shield', 'fortress-shield'].includes(baseItem);
-        const coverSelection = isTowerShield ? { bonus: 4, level: 'greater' } : { bonus: 2, level: 'standard' };
+        const { isTowerShield, ...coverSelection } = classifyShieldCover(shield);
 
         const coverUuid = PF2E_SHIELD_COVER_UUIDS.cover;
         const existing = actor.itemTypes?.effect?.find(

@@ -1,4 +1,4 @@
-import { AutoSortFramework } from '/modules/bg3-hud-core/scripts/features/AutoSortFramework.js';
+import { AutoSortFramework, compareByTypeThenKey } from '/modules/bg3-hud-core/scripts/features/AutoSortFramework.js';
 import { createLogger } from '/modules/bg3-hud-core/scripts/utils/logger.js';
 
 const log = createLogger('bg3-hud-pf2e');
@@ -68,46 +68,17 @@ export class Pf2eAutoSort extends AutoSortFramework {
         // Define PF2e item type order (first to last)
         const typeOrder = ['weapon', 'melee', 'action', 'feat', 'spell', 'consumable', 'ammo', 'equipment', 'armor', 'shield', 'backpack'];
 
-        items.sort((a, b) => {
-            // First, sort by item type according to our defined order
-            const typeIndexA = typeOrder.indexOf(a.type);
-            const typeIndexB = typeOrder.indexOf(b.type);
+        // Secondary tie-break within a type: spells by level (1-10), actions/feats by
+        // action cost (1, 2, 3). Every other type falls straight through to name.
+        const secondaryKeyFns = {
+            spell: (item) => item.sortData?.spellLevel ?? 99,
+            action: (item) => item.sortData?.actionCost ?? 0,
+            feat: (item) => item.sortData?.actionCost ?? 0
+        };
 
-            // Handle different type priorities
-            if (typeIndexA !== typeIndexB) {
-                if (typeIndexA === -1) return 1;  // Unknown types go to the end
-                if (typeIndexB === -1) return -1;
-                return typeIndexA - typeIndexB;
-            }
-
-            // Then apply PF2e type-specific sorting
-            switch (a.type) {
-                case 'spell':
-                    // Sort by spell level first (1-10)
-                    const levelA = a.sortData?.spellLevel ?? 99;
-                    const levelB = b.sortData?.spellLevel ?? 99;
-                    if (levelA !== levelB) {
-                        return levelA - levelB;
-                    }
-                    // If same level, sort alphabetically
-                    return (a.name || a.sortData?.name || '').localeCompare(b.name || b.sortData?.name || '');
-
-                case 'action':
-                case 'feat':
-                    // Sort by action cost first (1, 2, 3)
-                    const costA = a.sortData?.actionCost ?? 0;
-                    const costB = b.sortData?.actionCost ?? 0;
-                    if (costA !== costB) {
-                        return costA - costB;
-                    }
-                    // If same action cost, sort alphabetically
-                    return (a.name || a.sortData?.name || '').localeCompare(b.name || b.sortData?.name || '');
-
-                default:
-                    // All other items sort alphabetically within their type
-                    return (a.name || a.sortData?.name || '').localeCompare(b.name || b.sortData?.name || '');
-            }
-        });
+        items.sort(compareByTypeThenKey(typeOrder, secondaryKeyFns, {
+            getName: (item) => item.name || item.sortData?.name || ''
+        }));
     }
 
     /**
