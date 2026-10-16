@@ -3,6 +3,8 @@
 Requires **bg3-hud-core 0.8.0**.
 
 ### Changed
+- **Pathfinder 7 and 8**: This update loads on both. Foundry 13 stays on Pathfinder 7, through 7.12.2. Pathfinder 8 needs Foundry 14.
+- **Rings**: A ring spell hits the band. Pathfinder draws that band one square thick, centered on the radius. A square blast counts the square.
 - **Internal only**: Switched to `BG3HUD_API.getActiveAdapter()` for reading the active adapter, matching core's closure of the `ui.BG3HOTBAR.registry` seam. No player-facing change.
 
 ## [0.7.1] - 2026-10-05

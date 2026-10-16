@@ -95,7 +95,8 @@ export function getTargetRequirements({ item, activity = null }) {
         requirements.hasTemplate = true;
         requirements.template = {
             type: area.type,
-            size: area.size
+            size: area.size,
+            ...(area.width ? { width: area.width } : {})
         };
     } else if (_isSelfTarget(item)) {
         requirements.targetType = 'self';
@@ -144,19 +145,26 @@ export function isValidTargetType({ sourceToken, targetToken, requirements }) {
     return { valid: true, reason: null };
 }
 
-const PF2E_AREA_SHAPES = ['burst', 'cone', 'cube', 'cylinder', 'emanation', 'line', 'square'];
+const PF2E_AREA_SHAPES = ['burst', 'cone', 'cube', 'cylinder', 'emanation', 'line', 'ring', 'square'];
+const FEET_PER_SQUARE = 5;
 
 function _areaShape(item) {
     const area = item?.system?.area;
     if (area?.type && PF2E_AREA_SHAPES.includes(area.type)) {
-        return { type: area.type, size: area.value || 0 };
+        return _shape(area.type, area.value || 0);
     }
     const legacy = item?.system?.target?.type;
     if (legacy && PF2E_AREA_SHAPES.includes(legacy)) {
         const target = item.system.target;
-        return { type: legacy, size: target.value || target.distance || 0 };
+        return _shape(legacy, target.value || target.distance || 0);
     }
     return null;
+}
+
+function _shape(type, size) {
+    if (type !== 'ring') return { type, size };
+    // Pathfinder 8 centers a one-square band on the radius: half a square inside, half outside.
+    return { type, size: size + FEET_PER_SQUARE / 2, width: FEET_PER_SQUARE };
 }
 
 function _isSelfTarget(item) {
